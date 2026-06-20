@@ -47,6 +47,7 @@ export type AiReview = {
   oneLine: string;
   detail: string;
   scores: AiCriterionScore[];
+  customScores?: AiCriterionScore[];
   createdAt: number;
   model: string;
 };

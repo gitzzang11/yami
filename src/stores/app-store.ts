@@ -14,7 +14,7 @@ const defaultCriteria: Criterion[] = [
 
 const defaultSettings: AppSettings = {
   geminiApiKey: "",
-  geminiModel: "gemini-2.5-flash",
+  geminiModel: "gemini-3.5-flash",
   neisApiKey: "",
   darkMode: false,
   themeColor: "#0ea5e9",

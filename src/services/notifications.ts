@@ -2,6 +2,8 @@
 
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { Capacitor } from "@capacitor/core";
+import { db } from "@/db/app-db";
+import { yyyymmdd } from "@/lib/utils";
 import type { AiReview, Meal } from "@/types";
 
 export async function requestNotificationPermission() {
@@ -55,9 +57,37 @@ export async function disableMealNotification() {
 }
 
 export async function sendTestNotification(meal?: Meal, review?: AiReview) {
-  const title = review ? `테스트 알림 · ${review.totalScore}점` : "급식평론가 테스트";
-  const body = meal
-    ? `${meal.menu.slice(0, 4).join(", ")}${review ? ` · ${review.oneLine}` : ""}`
+  let finalMeal = meal;
+  let finalReview = review;
+
+  if (!finalMeal) {
+    try {
+      const todayStr = yyyymmdd(new Date());
+      const cachedMeal = await db.meals.where("date").equals(todayStr).first();
+      if (cachedMeal) {
+        finalMeal = cachedMeal;
+        const cachedReview = await db.reviews.where("mealId").equals(cachedMeal.id).last();
+        if (cachedReview) {
+          finalReview = cachedReview;
+        }
+      } else {
+        const lastMeal = await db.meals.orderBy("date").reverse().first();
+        if (lastMeal) {
+          finalMeal = lastMeal;
+          const cachedReview = await db.reviews.where("mealId").equals(lastMeal.id).last();
+          if (cachedReview) {
+            finalReview = cachedReview;
+          }
+        }
+      }
+    } catch (e) {
+      console.error("테스트 알림 폴백 조회 실패", e);
+    }
+  }
+
+  const title = finalReview ? `테스트 알림 · ${finalReview.totalScore}점` : "급식평론가 테스트";
+  const body = finalMeal
+    ? `${finalMeal.menu.slice(0, 4).join(", ")}${finalReview ? ` · ${finalReview.oneLine}` : ""}`
     : "알림이 정상적으로 도착했습니다.";
 
   if (!Capacitor.isNativePlatform()) {

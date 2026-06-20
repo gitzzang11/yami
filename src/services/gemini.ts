@@ -42,9 +42,10 @@ export async function evaluateMealWithGemini(
     "아래 학교 급식을 고등학생 관점에서 냉정하지만 유쾌하게 평가하세요.",
     "반드시 JSON 객체만 출력하세요. 마크다운, 설명문, 코드블록은 출력하지 마세요.",
     "JSON 스키마:",
-    '{"totalScore": number, "oneLine": "35자 이하", "detail": "상세 평가", "scores": [{"name": string, "score": number, "max": number, "comment": string}]}',
+    '{"totalScore": number, "oneLine": "35자 이하", "detail": "상세 평가", "scores": [{"name": string, "score": number, "max": number, "comment": string}], "customScores": [{"name": string, "score": number, "max": number, "comment": string}]}',
     "평가 항목과 만점: 맛과 조화 30점, 트렌드와 선호도 25점, 영양 균형 15점, 메뉴 다양성 10점, 구성 완성도 10점, 특별성 10점.",
-    `커스텀 선호 기준:\n${activeCriteria || "- 없음"}`,
+    `커스텀 선호 기준(활성화된 각 항목을 10점 만점으로 별도 평가하고 가중치를 코멘트에 언급하세요):\n${activeCriteria || "- 없음"}`,
+    "주의: 커스텀 선호 기준이 제공된 경우, 제공된 각 항목명(label)을 customScores 배열의 name으로 맵핑하여 10점 만점 기준 점수와 가중치 언급 코멘트를 반드시 작성하세요. 기준이 없다면 customScores는 빈 배열로 반환하세요.",
     `급식 날짜: ${meal.date}`,
     `메뉴: ${meal.menu.join(", ")}`,
     `칼로리: ${meal.calories ?? "정보 없음"}`,
@@ -82,6 +83,7 @@ export async function evaluateMealWithGemini(
     oneLine?: string;
     detail?: string;
     scores?: { name?: string; score?: number; max?: number; comment?: string }[];
+    customScores?: { name?: string; score?: number; max?: number; comment?: string }[];
   };
   try {
     parsed = extractJson(text);
@@ -95,6 +97,7 @@ export async function evaluateMealWithGemini(
         score: Math.round(item.max * 0.7),
         comment: "응답 파싱 실패로 보수 점수를 적용했습니다.",
       })),
+      customScores: [],
     };
   }
 
@@ -112,6 +115,17 @@ export async function evaluateMealWithGemini(
     100,
   );
 
+  const activeCriteriaList = criteria.filter((criterion) => criterion.enabled);
+  const customScores = activeCriteriaList.map((criterion) => {
+    const found = parsed.customScores?.find((score) => score.name === criterion.label);
+    return {
+      name: criterion.label,
+      max: 10,
+      score: clampScore(found?.score ?? 7, 10),
+      comment: found?.comment || `가중치 ${criterion.weight.toFixed(1)} 기준에 대해 적절히 반영되었습니다.`,
+    };
+  });
+
   const review: AiReview = {
     id: `${meal.id}-${Date.now()}`,
     mealId: meal.id,
@@ -120,6 +134,7 @@ export async function evaluateMealWithGemini(
     oneLine: (parsed.oneLine || "오늘 급식은 균형감 있게 무난해요").slice(0, 35),
     detail: parsed.detail || "상세 평가가 제공되지 않았습니다.",
     scores,
+    customScores,
     createdAt: Date.now(),
     model,
   };

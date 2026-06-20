@@ -132,6 +132,22 @@ export function HomeDashboard({
                 </div>
               ))}
             </div>
+            {review.customScores && review.customScores.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
+                <div className="text-xs font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">나의 커스텀 기준 반영도</div>
+                <div className="grid gap-2">
+                  {review.customScores.map((score) => (
+                    <div key={score.name} className="rounded-2xl bg-zinc-50/70 p-3.5 ring-1 ring-zinc-200/50 dark:bg-white/5 dark:ring-white/5 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-black text-zinc-700 dark:text-zinc-200">{score.name}</span>
+                        <span className="text-sm font-black text-[var(--theme)]">{score.score} / {score.max}</span>
+                      </div>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-5">{score.comment}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : null}
         <Button onClick={evaluate} disabled={!today || state === "loading"} className="w-full">

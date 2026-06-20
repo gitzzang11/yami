@@ -291,6 +291,22 @@ export function CalendarPanel() {
                         </div>
                       ))}
                     </div>
+                    {selectedReview.customScores && selectedReview.customScores.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
+                        <div className="text-2xs font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">나의 커스텀 기준 반영도</div>
+                        <div className="grid gap-2">
+                          {selectedReview.customScores.map((score) => (
+                            <div key={score.name} className="rounded-xl bg-zinc-50/70 p-3 ring-1 ring-zinc-200/50 dark:bg-white/5 dark:ring-white/5 space-y-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-black text-zinc-700 dark:text-zinc-200">{score.name}</span>
+                                <span className="text-xs font-black text-[var(--theme)]">{score.score} / {score.max}</span>
+                              </div>
+                              <p className="text-3xs text-zinc-500 dark:text-zinc-400 leading-4">{score.comment}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 

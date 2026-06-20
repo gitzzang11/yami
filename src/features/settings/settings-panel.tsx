@@ -52,9 +52,13 @@ export function SettingsPanel({ today, review }: Props) {
           <Select value={settings.geminiModel} onValueChange={(geminiModel) => updateSettings({ geminiModel })}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
+              <SelectItem value="gemini-3.5-flash">gemini-3.5-flash</SelectItem>
+              <SelectItem value="gemini-3.5-pro">gemini-3.5-pro</SelectItem>
+              <SelectItem value="gemini-3.1-flash-lite">gemini-3.1-flash-lite</SelectItem>
               <SelectItem value="gemini-2.5-flash">gemini-2.5-flash</SelectItem>
               <SelectItem value="gemini-2.5-pro">gemini-2.5-pro</SelectItem>
-              <SelectItem value="gemini-2.0-flash">gemini-2.0-flash</SelectItem>
+              <SelectItem value="gemma-4-26b">Gemma 4 26B</SelectItem>
+              <SelectItem value="gemma-4-31b">Gemma 4 31B</SelectItem>
             </SelectContent>
           </Select>
         </div>
