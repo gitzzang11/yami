@@ -32,6 +32,7 @@ export function CalendarPanel() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isLoading, setIsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [isNutritionOpen, setIsNutritionOpen] = useState(false);
 
   // 급식 및 AI 평가 데이터 가져오기
   const loadMonthData = useCallback(async (month: Date) => {
@@ -110,7 +111,8 @@ export function CalendarPanel() {
           selectedMeal,
           criteria,
           settings.geminiApiKey,
-          settings.geminiModel
+          settings.geminiModel,
+          settings.selectedSchool?.kind
         );
         // 캐시 데이터 새로 불러오기
         await loadMonthData(currentMonth);
@@ -226,9 +228,14 @@ export function CalendarPanel() {
           <div className="flex items-center justify-between border-b pb-2 border-zinc-200 dark:border-zinc-800">
             <h2 className="text-lg font-black">{formatKoreanDate(selectedDate)}</h2>
             {selectedMeal && (
-              <span className="text-xs font-bold rounded-full bg-zinc-100 px-3 py-1 dark:bg-white/10">
-                {selectedMeal.calories ?? "칼로리 정보 없음"}
-              </span>
+              <button
+                onClick={() => setIsNutritionOpen(true)}
+                className="text-xs font-bold rounded-full bg-zinc-100 px-3 py-1 dark:bg-white/10 hover:bg-zinc-200 dark:hover:bg-white/20 transition cursor-pointer flex items-center gap-1 active:scale-95"
+                title="영양 정보 보기"
+              >
+                <span>{selectedMeal.calories ?? "칼로리 정보 없음"}</span>
+                <span className="text-[10px] text-zinc-400 dark:text-zinc-500">🔍</span>
+              </button>
             )}
           </div>
 
@@ -326,6 +333,47 @@ export function CalendarPanel() {
             </Card>
           )}
         </motion.div>
+      </AnimatePresence>
+
+      {/* 영양 정보 팝업 모달 */}
+      <AnimatePresence>
+        {isNutritionOpen && selectedMeal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* 배경 오버레이 */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsNutritionOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-xs"
+            />
+
+            {/* 팝업 모달 */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0, transition: { type: "spring", damping: 25, stiffness: 350 } }}
+              exit={{ opacity: 0, scale: 0.9, y: 15 }}
+              className="relative z-10 w-full max-w-sm rounded-[32px] bg-white p-6 shadow-2xl dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 space-y-4"
+            >
+              <div>
+                <span className="text-2xs font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Nutrition Info</span>
+                <h3 className="text-xl font-black text-zinc-900 dark:text-white mt-0.5">
+                  {formatKoreanDate(selectedDate)} 영양 정보
+                </h3>
+              </div>
+
+              <div className="max-h-60 overflow-y-auto rounded-2xl bg-zinc-50 p-4 dark:bg-white/5">
+                <p className="whitespace-pre-line text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                  {selectedMeal.nutrition?.replace(/<br\/?>/gi, "\n") ?? "등록된 영양 정보가 없습니다."}
+                </p>
+              </div>
+
+              <Button onClick={() => setIsNutritionOpen(false)} className="w-full">
+                닫기
+              </Button>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
     </div>
   );

@@ -40,7 +40,13 @@ export function HomeDashboard({
 
   async function evaluate() {
     if (!today) return;
-    const result = await evaluateMealWithGemini(today, criteria, settings.geminiApiKey, settings.geminiModel);
+    const result = await evaluateMealWithGemini(
+      today,
+      criteria,
+      settings.geminiApiKey,
+      settings.geminiModel,
+      school.kind
+    );
     onReview(result);
     if (settings.notificationsEnabled) {
       await scheduleDailyMealNotification(settings.notificationTime, today, result);
