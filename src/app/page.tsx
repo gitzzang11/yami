@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import { BarChart3, Home, Settings, SlidersHorizontal } from "lucide-react";
+import { BarChart3, Calendar, Home, Settings, SlidersHorizontal } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CalendarPanel } from "@/features/calendar/calendar-panel";
 import { CriteriaEditor } from "@/features/criteria/criteria-editor";
 import { HomeDashboard } from "@/features/home/home-dashboard";
 import { SchoolSearch } from "@/features/school/school-search";
@@ -31,7 +32,7 @@ export default function App() {
   }
 
   return (
-    <main className="min-h-dvh bg-app px-4 pb-8 pt-5 text-zinc-950 dark:text-white sm:px-6">
+    <main className="min-h-dvh bg-app px-4 pb-8 pt-[calc(1.25rem+env(safe-area-inset-top))] text-zinc-950 dark:text-white sm:px-6">
       <div className="mx-auto max-w-5xl">
         <AnimatePresence mode="wait">
           {!settings.selectedSchool ? (
@@ -53,9 +54,10 @@ export default function App() {
           ) : (
             <motion.div key="app" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <Tabs defaultValue="home">
-                <div className="sticky top-3 z-20 mb-5">
-                  <TabsList className="mx-auto max-w-md grid-cols-4 shadow-lg shadow-zinc-900/10 backdrop-blur-xl">
+                <div className="sticky top-[calc(0.75rem+env(safe-area-inset-top))] z-20 mb-5">
+                  <TabsList className="mx-auto max-w-md grid-cols-5 shadow-lg shadow-zinc-900/10 backdrop-blur-xl">
                     <TabsTrigger value="home" aria-label="홈"><Home className="h-4 w-4" /></TabsTrigger>
+                    <TabsTrigger value="calendar" aria-label="달력"><Calendar className="h-4 w-4" /></TabsTrigger>
                     <TabsTrigger value="stats" aria-label="통계"><BarChart3 className="h-4 w-4" /></TabsTrigger>
                     <TabsTrigger value="criteria" aria-label="평가 기준"><SlidersHorizontal className="h-4 w-4" /></TabsTrigger>
                     <TabsTrigger value="settings" aria-label="설정"><Settings className="h-4 w-4" /></TabsTrigger>
@@ -75,6 +77,7 @@ export default function App() {
                     onReview={setReview}
                   />
                 </TabsContent>
+                <TabsContent value="calendar"><CalendarPanel /></TabsContent>
                 <TabsContent value="stats"><StatsPanel /></TabsContent>
                 <TabsContent value="criteria"><CriteriaEditor /></TabsContent>
                 <TabsContent value="settings"><SettingsPanel today={today} review={review} /></TabsContent>
