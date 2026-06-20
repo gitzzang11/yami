@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #f7f7fb;
+  --foreground: #111827;
+  --theme: #0ea5e9;
+}
+
+.dark {
+  --background: #08090c;
+  --foreground: #f8fafc;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--background);
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+.bg-app {
+  background:
+    radial-gradient(circle at 10% -10%, color-mix(in srgb, var(--theme) 28%, transparent), transparent 32rem),
+    radial-gradient(circle at 95% 5%, rgba(244, 63, 94, 0.18), transparent 28rem),
+    linear-gradient(135deg, #f8fafc 0%, #eef2ff 42%, #f7fee7 100%);
+}
+
+.dark .bg-app {
+  background:
+    radial-gradient(circle at 15% -5%, color-mix(in srgb, var(--theme) 24%, transparent), transparent 30rem),
+    radial-gradient(circle at 95% 0%, rgba(244, 63, 94, 0.16), transparent 26rem),
+    linear-gradient(135deg, #07080c 0%, #111827 50%, #0f172a 100%);
+}

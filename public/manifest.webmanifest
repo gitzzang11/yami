@@ -1,0 +1,19 @@
+{
+  "name": "급식평론가",
+  "short_name": "급식평론가",
+  "description": "오늘 급식을 확인하고 Gemini AI 평가를 받는 학생용 앱",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0ea5e9",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
