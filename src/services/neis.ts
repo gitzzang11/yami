@@ -1,4 +1,4 @@
-import { addDays } from "date-fns";
+﻿import { addDays } from "date-fns";
 import { db } from "@/db/app-db";
 import { splitMenu, yyyymmdd } from "@/lib/utils";
 import type { Meal, NeisMealRow, School } from "@/types";
@@ -13,8 +13,9 @@ type NeisSchoolRow = {
   SCHUL_KND_SC_NM?: string;
 };
 
-function neisKey(apiKey?: string) {
-  return apiKey?.trim() || "sample";
+function withOptionalKey(apiKey?: string) {
+  const key = apiKey?.trim();
+  return key ? { KEY: key } : {};
 }
 
 async function fetchNeis<T>(path: string, params: Record<string, string | number | undefined>) {
@@ -42,7 +43,7 @@ export async function searchSchools(query: string, apiKey?: string): Promise<Sch
   }
   const data = await fetchNeis<{ schoolInfo?: [{ head: unknown }, { row: NeisSchoolRow[] }] }>(
     "schoolInfo",
-    { KEY: neisKey(apiKey), SCHUL_NM: query.trim() },
+    { ...withOptionalKey(apiKey), SCHUL_NM: query.trim() },
   );
   const rows = data.schoolInfo?.[1]?.row ?? [];
   const schools = rows.map((row) => ({
@@ -94,7 +95,7 @@ export async function getMealsByRange(
     const data = await fetchNeis<{ mealServiceDietInfo?: [{ head: unknown }, { row: NeisMealRow[] }] }>(
       "mealServiceDietInfo",
       {
-        KEY: neisKey(apiKey),
+        ...withOptionalKey(apiKey),
         ATPT_OFCDC_SC_CODE: school.officeCode,
         SD_SCHUL_CODE: school.schoolCode,
         MLSV_FROM_YMD: start,
@@ -129,3 +130,5 @@ export async function getTodayTomorrowWeek(school: School, apiKey?: string) {
     week: meals,
   };
 }
+
+
