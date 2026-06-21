@@ -54,3 +54,25 @@ textarea {
     radial-gradient(circle at 95% 0%, rgba(244, 63, 94, 0.16), transparent 26rem),
     linear-gradient(135deg, #07080c 0%, #111827 50%, #0f172a 100%);
 }
+
+/* 동적 테마 연동 및 탭바 스타일링 */
+.dark .text-theme-active {
+  color: var(--theme) !important;
+}
+
+.active-tab-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background-color: rgba(255, 255, 255, 0.15);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  z-index: 0;
+}
+
+.dark .active-tab-bg {
+  background-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    0 0 14px color-mix(in srgb, var(--theme) 35%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+

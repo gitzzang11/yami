@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { BarChart3, Calendar, Home, Settings, SlidersHorizontal } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,6 +17,7 @@ import { useAppStore } from "@/stores/app-store";
 export default function App() {
   usePwa();
   const { settings, setSchool, hasHydrated } = useAppStore();
+  const [activeTab, setActiveTab] = useState("home");
   const { today, tomorrow, week, review, setReview, state, error, offline, reload } = useMealData(
     settings.selectedSchool,
     settings.neisApiKey,
@@ -32,7 +33,7 @@ export default function App() {
   }
 
   return (
-    <main className="min-h-dvh bg-app px-4 pb-8 pt-[calc(1.25rem+env(safe-area-inset-top))] text-zinc-950 dark:text-white sm:px-6">
+    <main className="min-h-dvh bg-app px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-[calc(1.25rem+env(safe-area-inset-top))] text-zinc-950 dark:text-white sm:px-6">
       <div className="mx-auto max-w-5xl">
         <AnimatePresence mode="wait">
           {!settings.selectedSchool ? (
@@ -53,14 +54,95 @@ export default function App() {
             </motion.div>
           ) : (
             <motion.div key="app" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <Tabs defaultValue="home">
-                <div className="sticky top-[calc(0.75rem+env(safe-area-inset-top))] z-20 mb-5">
-                  <TabsList className="mx-auto max-w-md grid-cols-5 shadow-lg shadow-zinc-900/10 backdrop-blur-xl">
-                    <TabsTrigger value="home" aria-label="홈"><Home className="h-4 w-4" /></TabsTrigger>
-                    <TabsTrigger value="calendar" aria-label="달력"><Calendar className="h-4 w-4" /></TabsTrigger>
-                    <TabsTrigger value="stats" aria-label="통계"><BarChart3 className="h-4 w-4" /></TabsTrigger>
-                    <TabsTrigger value="criteria" aria-label="평가 기준"><SlidersHorizontal className="h-4 w-4" /></TabsTrigger>
-                    <TabsTrigger value="settings" aria-label="설정"><Settings className="h-4 w-4" /></TabsTrigger>
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <div className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] left-1/2 z-30 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md">
+                  <TabsList
+                    className="grid grid-cols-5 h-16 items-center gap-1 rounded-full border border-white/15 dark:border-white/15 bg-zinc-900/60 dark:bg-black/40 p-1.5 text-white shadow-[0_8px_32px_rgba(0,0,0,0.37)] dark:shadow-[0_16px_48px_-8px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.15)]"
+                    style={{
+                      backdropFilter: "blur(20px)",
+                      WebkitBackdropFilter: "blur(20px)",
+                    }}
+                  >
+                    <TabsTrigger
+                      value="home"
+                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative"
+                    >
+                      {activeTab === "home" && (
+                        <motion.div
+                          layoutId="active-tab-bg"
+                          className="active-tab-bg"
+                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        />
+                      )}
+                      <span className={`relative z-10 flex flex-col items-center gap-1 transition-colors ${activeTab === "home" ? "text-white dark:text-theme-active" : ""}`}>
+                        <Home className="h-4.5 w-4.5" />
+                        <span className="text-[10px] font-bold">홈</span>
+                      </span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="calendar"
+                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative"
+                    >
+                      {activeTab === "calendar" && (
+                        <motion.div
+                          layoutId="active-tab-bg"
+                          className="active-tab-bg"
+                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        />
+                      )}
+                      <span className={`relative z-10 flex flex-col items-center gap-1 transition-colors ${activeTab === "calendar" ? "text-white dark:text-theme-active" : ""}`}>
+                        <Calendar className="h-4.5 w-4.5" />
+                        <span className="text-[10px] font-bold">달력</span>
+                      </span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="stats"
+                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative"
+                    >
+                      {activeTab === "stats" && (
+                        <motion.div
+                          layoutId="active-tab-bg"
+                          className="active-tab-bg"
+                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        />
+                      )}
+                      <span className={`relative z-10 flex flex-col items-center gap-1 transition-colors ${activeTab === "stats" ? "text-white dark:text-theme-active" : ""}`}>
+                        <BarChart3 className="h-4.5 w-4.5" />
+                        <span className="text-[10px] font-bold">통계</span>
+                      </span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="criteria"
+                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative"
+                    >
+                      {activeTab === "criteria" && (
+                        <motion.div
+                          layoutId="active-tab-bg"
+                          className="active-tab-bg"
+                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        />
+                      )}
+                      <span className={`relative z-10 flex flex-col items-center gap-1 transition-colors ${activeTab === "criteria" ? "text-white dark:text-theme-active" : ""}`}>
+                        <SlidersHorizontal className="h-4.5 w-4.5" />
+                        <span className="text-[10px] font-bold">기준</span>
+                      </span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="settings"
+                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative"
+                    >
+                      {activeTab === "settings" && (
+                        <motion.div
+                          layoutId="active-tab-bg"
+                          className="active-tab-bg"
+                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                        />
+                      )}
+                      <span className={`relative z-10 flex flex-col items-center gap-1 transition-colors ${activeTab === "settings" ? "text-white dark:text-theme-active" : ""}`}>
+                        <Settings className="h-4.5 w-4.5" />
+                        <span className="text-[10px] font-bold">설정</span>
+                      </span>
+                    </TabsTrigger>
                   </TabsList>
                 </div>
                 <TabsContent value="home">

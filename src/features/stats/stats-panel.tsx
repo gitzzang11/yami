@@ -8,6 +8,53 @@ import { db } from "@/db/app-db";
 import { scoreTone } from "@/lib/utils";
 import type { AiReview } from "@/types";
 
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    payload: {
+      date: string;
+      score: number;
+    };
+  }>;
+}
+
+function CustomTooltip({ active, payload }: CustomTooltipProps) {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    const score = data.score;
+    const tone = scoreTone(score);
+    
+    let formattedDate = data.date;
+    if (data.date && data.date.length === 4) {
+      const month = parseInt(data.date.slice(0, 2), 10);
+      const day = parseInt(data.date.slice(2), 10);
+      formattedDate = `${month}월 ${day}일`;
+    }
+
+    return (
+      <div
+        className="rounded-2xl border border-zinc-200/30 bg-white/60 p-3 shadow-xl dark:border-white/10 dark:bg-black/40"
+        style={{
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+        }}
+      >
+        <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400">{formattedDate} 급식</p>
+        <div className="mt-1 flex items-center gap-1.5">
+          <span className="text-lg">{tone.emoji}</span>
+          <span className={`text-base font-black ${tone.textClassName}`}>
+            {score}점
+          </span>
+          <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+            ({tone.label})
+          </span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
+
 export function StatsPanel() {
   const [reviews, setReviews] = useState<AiReview[]>([]);
 
@@ -53,11 +100,14 @@ export function StatsPanel() {
           {reviews.length ? (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={reviews.map((review) => ({ date: review.date.slice(4), score: review.totalScore }))}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Bar dataKey="score" radius={[8, 8, 0, 0]} fill="#0ea5e9" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(228, 228, 231, 0.15)" />
+                <XAxis dataKey="date" tick={{ fontSize: 10, fill: "currentColor", opacity: 0.6 }} axisLine={false} tickLine={false} />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: "currentColor", opacity: 0.6 }} axisLine={false} tickLine={false} width={25} />
+                <Tooltip
+                  content={<CustomTooltip />}
+                  cursor={{ fill: "rgba(255, 255, 255, 0.05)", radius: 8 }}
+                />
+                <Bar dataKey="score" radius={[6, 6, 0, 0]} fill="var(--theme)" />
               </BarChart>
             </ResponsiveContainer>
           ) : (

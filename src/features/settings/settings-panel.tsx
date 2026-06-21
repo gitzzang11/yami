@@ -17,7 +17,7 @@ type Props = {
   review?: AiReview;
 };
 
-const colors = ["#0ea5e9", "#10b981", "#f43f5e", "#8b5cf6", "#f59e0b"];
+const colors = ["#0ea5e9", "#10b981", "#f43f5e", "#8b5cf6", "#f59e0b", "#f5f5f7"];
 
 export function SettingsPanel({ today, review }: Props) {
   const { settings, updateSettings } = useAppStore();
@@ -106,13 +106,13 @@ export function SettingsPanel({ today, review }: Props) {
           <div className="flex items-center gap-2 font-bold"><Moon className="h-4 w-4" /> 다크모드</div>
           <Switch checked={settings.darkMode} onCheckedChange={(darkMode) => updateSettings({ darkMode })} />
         </div>
-        <div className="grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-6 gap-2">
           {colors.map((themeColor) => (
             <button
               key={themeColor}
               aria-label={`${themeColor} 테마 선택`}
               onClick={() => updateSettings({ themeColor })}
-              className="h-12 rounded-2xl ring-2 ring-offset-2 ring-offset-transparent transition"
+              className="h-12 rounded-2xl border border-zinc-200 dark:border-white/10 ring-2 ring-offset-2 ring-offset-transparent transition cursor-pointer"
               style={{
                 backgroundColor: themeColor,
                 boxShadow: settings.themeColor === themeColor ? `0 0 0 3px ${themeColor}44` : undefined,
