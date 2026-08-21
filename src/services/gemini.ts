@@ -1,5 +1,80 @@
 import { db } from "@/db/app-db";
-import type { AiReview, Criterion, Meal } from "@/types";
+import type { AiReview, Criterion, GeminiModelOption, Meal } from "@/types";
+
+export const DEFAULT_GEMINI_MODELS: GeminiModelOption[] = [
+  { id: "gemini-3.5-flash", displayName: "gemini-3.5-flash" },
+  { id: "gemini-3.5-pro", displayName: "gemini-3.5-pro" },
+  { id: "gemini-3.1-flash-lite", displayName: "gemini-3.1-flash-lite" },
+  { id: "gemini-2.5-flash", displayName: "gemini-2.5-flash" },
+  { id: "gemini-2.5-pro", displayName: "gemini-2.5-pro" },
+  { id: "gemma-4-26b", displayName: "Gemma 4 26B" },
+  { id: "gemma-4-31b", displayName: "Gemma 4 31B" },
+];
+
+export async function fetchAvailableGeminiModels(apiKey: string): Promise<GeminiModelOption[]> {
+  const trimmedKey = apiKey.trim();
+  if (!trimmedKey) {
+    throw new Error("Gemini API Key를 입력해주세요.");
+  }
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models?key=${trimmedKey}`,
+    {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    },
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    let message = response.statusText;
+    try {
+      const errJson = JSON.parse(errorText);
+      message = errJson.error?.message || message;
+    } catch {
+      message = errorText.slice(0, 100);
+    }
+    throw new Error(`모델 목록을 가져오지 못했습니다 (${message})`);
+  }
+
+  const payload = await response.json();
+  if (!payload.models || !Array.isArray(payload.models)) {
+    throw new Error("올바른 모델 응답을 수신하지 못했습니다.");
+  }
+
+  const models: GeminiModelOption[] = (payload.models as Array<{
+    name?: string;
+    displayName?: string;
+    description?: string;
+    supportedGenerationMethods?: string[];
+  }>)
+    .filter((m) => {
+      return (
+        typeof m.name === "string" &&
+        Array.isArray(m.supportedGenerationMethods) &&
+        m.supportedGenerationMethods.includes("generateContent")
+      );
+    })
+    .map((m) => {
+      const id = m.name!.replace(/^models\//, "");
+      return {
+        id,
+        displayName: m.displayName || id,
+        description: m.description,
+      };
+    });
+
+  // Sort: Gemini models first, then Gemma, then others
+  models.sort((a, b) => {
+    const isGeminiA = a.id.toLowerCase().startsWith("gemini");
+    const isGeminiB = b.id.toLowerCase().startsWith("gemini");
+    if (isGeminiA && !isGeminiB) return -1;
+    if (!isGeminiA && isGeminiB) return 1;
+    return a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: "base" });
+  });
+
+  return models;
+}
 
 const SCORE_SCHEMA = [
   { name: "맛과 조화", max: 30 },
@@ -51,6 +126,11 @@ export async function evaluateMealWithGemini(
 
   const prompt = [
     "당신은 대한민국 최고의 급식 비평가이자 전문 셰프입니다.",
+    "★ [평가 중요 수칙 - 점수 다양성 극대화]:",
+    "- 평가 점수(totalScore 및 각 세부 항목 점수)가 평범한 70~80점대 주변으로만 수렴하면 비평가로서 실격입니다.",
+    "- 메뉴 구성이 부실하거나, 조화가 깨지거나, 영양 불균형이 심한 날은 가차 없이 30점~50점대의 매서운 혹평을 내리세요.",
+    "- 영양 배치가 훌륭하고 트렌디한 메뉴 구성이거나, 보기만 해도 군침이 도는 훌륭한 특식이 나온 날은 아낌없이 90점~98점대의 높은 극찬 점수를 부여하세요.",
+    "- 점수의 폭(30점대부터 90점대 후반까지)을 과감하고 예리하게 다변화하여 비평의 개성을 드러내세요.",
     `아래 학교 급식을 ${persona} 평가하세요.`,
     "반드시 JSON 객체만 출력하세요. 마크다운, 설명문, 코드블록은 출력하지 마세요.",
     "JSON 스키마:",
@@ -64,7 +144,7 @@ export async function evaluateMealWithGemini(
     `칼로리: ${meal.calories ?? "정보 없음"}`,
     `영양정보: ${meal.nutrition ?? "정보 없음"}`,
   ].join("\n\n");
-
+ 
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`,
     {
@@ -73,7 +153,7 @@ export async function evaluateMealWithGemini(
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.55,
+          temperature: 0.82,
           responseMimeType: "application/json",
         },
       }),

@@ -13,11 +13,21 @@ import { StatsPanel } from "@/features/stats/stats-panel";
 import { useMealData } from "@/hooks/use-meal-data";
 import { usePwa } from "@/hooks/use-pwa";
 import { useAppStore } from "@/stores/app-store";
+import { scheduleDailyMealNotification, disableMealNotification } from "@/services/notifications";
+import { NotificationToast } from "@/components/ui/toast";
 
 export default function App() {
   usePwa();
   const { settings, setSchool, hasHydrated } = useAppStore();
   const [activeTab, setActiveTab] = useState("home");
+  const tabIndices: Record<string, number> = {
+    home: 0,
+    calendar: 1,
+    stats: 2,
+    criteria: 3,
+    settings: 4,
+  };
+  const activeIndex = tabIndices[activeTab] ?? 0;
   const { today, tomorrow, week, review, setReview, state, error, offline, reload } = useMealData(
     settings.selectedSchool,
     settings.neisApiKey,
@@ -28,12 +38,27 @@ export default function App() {
     document.documentElement.style.setProperty("--theme", settings.themeColor);
   }, [settings.darkMode, settings.themeColor]);
 
+  useEffect(() => {
+    if (!hasHydrated) return;
+    if (settings.notificationsEnabled) {
+      scheduleDailyMealNotification(settings.notificationTime, today, review).catch((err) =>
+        console.error("자동 알림 갱신 실패", err),
+      );
+    } else {
+      // 알림이 꺼진 상태에서도 혹시 남아있는 예약 알림을 확실히 취소
+      disableMealNotification().catch((err) =>
+        console.error("알림 잔여 취소 실패", err),
+      );
+    }
+  }, [hasHydrated, settings.notificationsEnabled, settings.notificationTime, today, review]);
+
   if (!hasHydrated) {
     return <main className="min-h-dvh bg-app" />;
   }
 
   return (
     <main className="min-h-dvh bg-app px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-[calc(1.25rem+env(safe-area-inset-top))] text-zinc-950 dark:text-white sm:px-6">
+      <NotificationToast />
       <div className="mx-auto max-w-5xl">
         <AnimatePresence mode="wait">
           {!settings.selectedSchool ? (
@@ -57,23 +82,23 @@ export default function App() {
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <div className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] left-1/2 z-30 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md">
                   <TabsList
-                    className="grid grid-cols-5 h-16 items-center gap-1 rounded-full border border-white/15 dark:border-white/15 bg-zinc-900/60 dark:bg-black/40 p-1.5 text-white shadow-[0_8px_32px_rgba(0,0,0,0.37)] dark:shadow-[0_16px_48px_-8px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.15)]"
+                    className="grid grid-cols-5 h-16 items-center gap-1 rounded-full border border-white/15 dark:border-white/15 bg-zinc-900/60 dark:bg-black/40 p-1.5 text-white shadow-[0_8px_32px_rgba(0,0,0,0.37)] dark:shadow-[0_16px_48px_-8px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.15)] relative"
                     style={{
                       backdropFilter: "blur(20px)",
                       WebkitBackdropFilter: "blur(20px)",
                     }}
                   >
+                    <motion.div
+                      className="active-tab-bg absolute w-[calc((100%-0.75rem)/5)]"
+                      animate={{
+                        left: `calc(0.375rem + (100% - 0.75rem) / 5 * ${activeIndex})`
+                      }}
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    />
                     <TabsTrigger
                       value="home"
                       className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative"
                     >
-                      {activeTab === "home" && (
-                        <motion.div
-                          layoutId="active-tab-bg"
-                          className="active-tab-bg"
-                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                        />
-                      )}
                       <span className={`relative z-10 flex flex-col items-center gap-1 transition-colors ${activeTab === "home" ? "text-white dark:text-theme-active" : ""}`}>
                         <Home className="h-4.5 w-4.5" />
                         <span className="text-[10px] font-bold">홈</span>
@@ -83,13 +108,6 @@ export default function App() {
                       value="calendar"
                       className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative"
                     >
-                      {activeTab === "calendar" && (
-                        <motion.div
-                          layoutId="active-tab-bg"
-                          className="active-tab-bg"
-                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                        />
-                      )}
                       <span className={`relative z-10 flex flex-col items-center gap-1 transition-colors ${activeTab === "calendar" ? "text-white dark:text-theme-active" : ""}`}>
                         <Calendar className="h-4.5 w-4.5" />
                         <span className="text-[10px] font-bold">달력</span>
@@ -99,13 +117,6 @@ export default function App() {
                       value="stats"
                       className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative"
                     >
-                      {activeTab === "stats" && (
-                        <motion.div
-                          layoutId="active-tab-bg"
-                          className="active-tab-bg"
-                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                        />
-                      )}
                       <span className={`relative z-10 flex flex-col items-center gap-1 transition-colors ${activeTab === "stats" ? "text-white dark:text-theme-active" : ""}`}>
                         <BarChart3 className="h-4.5 w-4.5" />
                         <span className="text-[10px] font-bold">통계</span>
@@ -115,13 +126,6 @@ export default function App() {
                       value="criteria"
                       className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative"
                     >
-                      {activeTab === "criteria" && (
-                        <motion.div
-                          layoutId="active-tab-bg"
-                          className="active-tab-bg"
-                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                        />
-                      )}
                       <span className={`relative z-10 flex flex-col items-center gap-1 transition-colors ${activeTab === "criteria" ? "text-white dark:text-theme-active" : ""}`}>
                         <SlidersHorizontal className="h-4.5 w-4.5" />
                         <span className="text-[10px] font-bold">기준</span>
@@ -131,13 +135,6 @@ export default function App() {
                       value="settings"
                       className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative"
                     >
-                      {activeTab === "settings" && (
-                        <motion.div
-                          layoutId="active-tab-bg"
-                          className="active-tab-bg"
-                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                        />
-                      )}
                       <span className={`relative z-10 flex flex-col items-center gap-1 transition-colors ${activeTab === "settings" ? "text-white dark:text-theme-active" : ""}`}>
                         <Settings className="h-4.5 w-4.5" />
                         <span className="text-[10px] font-bold">설정</span>

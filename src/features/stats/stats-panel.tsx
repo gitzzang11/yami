@@ -107,7 +107,7 @@ export function StatsPanel() {
                   content={<CustomTooltip />}
                   cursor={{ fill: "rgba(255, 255, 255, 0.05)", radius: 8 }}
                 />
-                <Bar dataKey="score" radius={[6, 6, 0, 0]} fill="var(--theme)" />
+                <Bar dataKey="score" radius={[6, 6, 0, 0]} fill="var(--theme)" activeBar={false} />
               </BarChart>
             </ResponsiveContainer>
           ) : (

@@ -52,9 +52,16 @@ export type AiReview = {
   model: string;
 };
 
+export type GeminiModelOption = {
+  id: string;
+  displayName: string;
+  description?: string;
+};
+
 export type AppSettings = {
   geminiApiKey: string;
   geminiModel: string;
+  availableGeminiModels?: GeminiModelOption[];
   neisApiKey: string;
   darkMode: boolean;
   themeColor: string;

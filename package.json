@@ -1,6 +1,6 @@
 {
     "name":  "yami",
-    "version": "0.4.8",
+    "version": "1.0.0",
     "private":  true,
     "scripts":  {
                     "dev":  "next dev",
@@ -10,8 +10,8 @@
                     "cap:add:android":  "cap add android",
                     "cap:sync":  "npm run build \u0026\u0026 cap sync android",
                     "android":  "npm run cap:sync \u0026\u0026 cap open android",
-                    "apk:debug":  "npm run cap:sync \u0026\u0026 cd android \u0026\u0026 set \"JAVA_HOME=C:\\Program Files\\Android\\Android Studio\\jbr\" \u0026\u0026 set \"PATH=C:\\Program Files\\Android\\Android Studio\\jbr\\bin;%PATH%\" \u0026\u0026 gradlew assembleDebug",
-                    "apk:release":  "npm run cap:sync \u0026\u0026 cd android \u0026\u0026 set \"JAVA_HOME=C:\\Program Files\\Android\\Android Studio\\jbr\" \u0026\u0026 set \"PATH=C:\\Program Files\\Android\\Android Studio\\jbr\\bin;%PATH%\" \u0026\u0026 gradlew assembleRelease"
+                    "apk:debug":  "npm run cap:sync && cd android && set \"JAVA_HOME=C:\\Program Files\\Android\\Android Studio\\jbr\" && set \"PATH=C:\\Program Files\\Android\\Android Studio\\jbr\\bin;%PATH%\" && gradlew assembleDebug && cd .. && copy /y android\\app\\build\\outputs\\apk\\debug\\app-debug.apk .\\app-debug.apk",
+                    "apk:release":  "npm run cap:sync && cd android && set \"JAVA_HOME=C:\\Program Files\\Android\\Android Studio\\jbr\" && set \"PATH=C:\\Program Files\\Android\\Android Studio\\jbr\\bin;%PATH%\" && gradlew assembleRelease && cd .. && copy /y android\\app\\build\\outputs\\apk\\release\\app-release-unsigned.apk .\\app-release.apk"
                 },
     "dependencies":  {
                          "@capacitor/android":  "^8.4.1",

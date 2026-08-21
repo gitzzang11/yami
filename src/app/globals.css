@@ -62,7 +62,8 @@ textarea {
 
 .active-tab-bg {
   position: absolute;
-  inset: 0;
+  top: 6px;
+  bottom: 6px;
   border-radius: 9999px;
   background-color: rgba(255, 255, 255, 0.15);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -74,5 +75,28 @@ textarea {
   box-shadow: 
     0 0 14px color-mix(in srgb, var(--theme) 35%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* Recharts active bar stroke/outline removal overrides */
+.recharts-rectangle.recharts-active-bar {
+  stroke: none !important;
+  stroke-width: 0 !important;
+}
+/* Recharts 및 차트 영역 터치 하이라이트 및 포커스 아웃라인 완전 제거 */
+.recharts-wrapper,
+.recharts-wrapper *,
+.recharts-responsive-container,
+.recharts-responsive-container *,
+.recharts-surface,
+.recharts-surface *,
+svg,
+svg *,
+g,
+rect,
+path {
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-focus-ring-color: transparent !important;
 }
 
