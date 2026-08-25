@@ -4,9 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { db } from "@/db/app-db";
 import { getLatestReview } from "@/services/gemini";
 import { getTodayTomorrowWeek } from "@/services/neis";
-import type { AiReview, LoadState, Meal, School } from "@/types";
+import type { AiReview, LoadState, Meal, MealKind, School } from "@/types";
 
-export function useMealData(school?: School, neisApiKey?: string) {
+export function useMealData(school?: School, neisApiKey?: string, initialKind: MealKind = "lunch") {
+  const [mealKind, setMealKind] = useState<MealKind>(initialKind);
   const [today, setToday] = useState<Meal>();
   const [tomorrow, setTomorrow] = useState<Meal>();
   const [week, setWeek] = useState<Meal[]>([]);
@@ -23,7 +24,7 @@ export function useMealData(school?: School, neisApiKey?: string) {
     setState("loading");
     setError("");
     try {
-      const data = await getTodayTomorrowWeek(school, neisApiKey);
+      const data = await getTodayTomorrowWeek(school, neisApiKey, mealKind);
       setToday(data.today);
       setTomorrow(data.tomorrow);
       setWeek(data.week);
@@ -31,9 +32,16 @@ export function useMealData(school?: School, neisApiKey?: string) {
       setState(data.today || data.week.length ? "success" : "empty");
       if (data.today) {
         setReview(await getLatestReview(data.today.id));
+      } else {
+        setReview(undefined);
       }
     } catch (err) {
-      const cached = await db.meals.where("schoolCode").equals(school.schoolCode).reverse().sortBy("date");
+      const cached = await db.meals
+        .where("schoolCode")
+        .equals(school.schoolCode)
+        .filter((m) => m.kind === mealKind)
+        .reverse()
+        .sortBy("date");
       setWeek(cached.slice(0, 7).reverse());
       setToday(cached[0]);
       if (cached[0]) {
@@ -45,7 +53,7 @@ export function useMealData(school?: School, neisApiKey?: string) {
         setState("error");
       }
     }
-  }, [school, neisApiKey]);
+  }, [school, neisApiKey, mealKind]);
 
   useEffect(() => {
     const task = window.setTimeout(() => {
@@ -54,5 +62,17 @@ export function useMealData(school?: School, neisApiKey?: string) {
     return () => window.clearTimeout(task);
   }, [load]);
 
-  return { today, tomorrow, week, review, setReview, state, error, offline, reload: load };
+  return {
+    mealKind,
+    setMealKind,
+    today,
+    tomorrow,
+    week,
+    review,
+    setReview,
+    state,
+    error,
+    offline,
+    reload: load,
+  };
 }

@@ -20,6 +20,8 @@ const defaultSettings: AppSettings = {
   themeColor: "#0ea5e9",
   notificationsEnabled: false,
   notificationTime: "07:30",
+  userAllergies: [],
+  preferredMealKind: "lunch",
 };
 
 type AppStore = {
@@ -28,6 +30,7 @@ type AppStore = {
   hasHydrated: boolean;
   setHydrated: (value: boolean) => void;
   updateSettings: (settings: Partial<AppSettings>) => void;
+  toggleAllergy: (allergyId: number) => void;
   setSchool: (school: School) => void;
   addCriterion: (label: string) => void;
   updateCriterion: (id: string, updates: Partial<Criterion>) => void;
@@ -43,6 +46,14 @@ export const useAppStore = create<AppStore>()(
       setHydrated: (value) => set({ hasHydrated: value }),
       updateSettings: (updates) =>
         set((state) => ({ settings: { ...state.settings, ...updates } })),
+      toggleAllergy: (allergyId) =>
+        set((state) => {
+          const current = state.settings.userAllergies ?? [];
+          const next = current.includes(allergyId)
+            ? current.filter((id) => id !== allergyId)
+            : [...current, allergyId];
+          return { settings: { ...state.settings, userAllergies: next } };
+        }),
       setSchool: (school) =>
         set((state) => ({ settings: { ...state.settings, selectedSchool: school } })),
       addCriterion: (label) =>
@@ -50,7 +61,7 @@ export const useAppStore = create<AppStore>()(
           criteria: [
             ...state.criteria,
             {
-              id: crypto.randomUUID(),
+              id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `crit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
               label: label.trim(),
               weight: 1,
               enabled: true,

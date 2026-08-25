@@ -6,6 +6,7 @@ import { Trophy } from "lucide-react";
 import { Card, CardTitle } from "@/components/ui/card";
 import { db } from "@/db/app-db";
 import { scoreTone } from "@/lib/utils";
+import { useAppStore } from "@/stores/app-store";
 import type { AiReview } from "@/types";
 
 interface CustomTooltipProps {
@@ -56,17 +57,33 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
 }
 
 export function StatsPanel() {
+  const { settings } = useAppStore();
   const [reviews, setReviews] = useState<AiReview[]>([]);
 
   useEffect(() => {
+    let active = true;
+    if (!settings.selectedSchool) {
+      const timer = window.setTimeout(() => {
+        if (active) setReviews([]);
+      }, 0);
+      return () => {
+        active = false;
+        window.clearTimeout(timer);
+      };
+    }
     const since = Date.now() - 1000 * 60 * 60 * 24 * 30;
     db.reviews
-      .where("createdAt")
-      .aboveOrEqual(since)
-      .reverse()
+      .where("schoolCode")
+      .equals(settings.selectedSchool.schoolCode)
+      .filter((r) => r.createdAt >= since)
       .sortBy("createdAt")
-      .then((items) => setReviews(items.reverse()));
-  }, []);
+      .then((items) => {
+        if (active) setReviews(items);
+      });
+    return () => {
+      active = false;
+    };
+  }, [settings.selectedSchool]);
 
   const stats = useMemo(() => {
     const scores = reviews.map((review) => review.totalScore);

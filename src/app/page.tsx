@@ -18,7 +18,7 @@ import { NotificationToast } from "@/components/ui/toast";
 
 export default function App() {
   usePwa();
-  const { settings, setSchool, hasHydrated } = useAppStore();
+  const { settings, setSchool, updateSettings, hasHydrated } = useAppStore();
   const [activeTab, setActiveTab] = useState("home");
   const tabIndices: Record<string, number> = {
     home: 0,
@@ -28,9 +28,22 @@ export default function App() {
     settings: 4,
   };
   const activeIndex = tabIndices[activeTab] ?? 0;
-  const { today, tomorrow, week, review, setReview, state, error, offline, reload } = useMealData(
+  const {
+    mealKind,
+    setMealKind,
+    today,
+    tomorrow,
+    week,
+    review,
+    setReview,
+    state,
+    error,
+    offline,
+    reload,
+  } = useMealData(
     settings.selectedSchool,
     settings.neisApiKey,
+    settings.preferredMealKind ?? "lunch",
   );
 
   useEffect(() => {
@@ -145,6 +158,11 @@ export default function App() {
                 <TabsContent value="home">
                   <HomeDashboard
                     school={settings.selectedSchool}
+                    mealKind={mealKind}
+                    onMealKindChange={(k) => {
+                      setMealKind(k);
+                      updateSettings({ preferredMealKind: k });
+                    }}
                     today={today}
                     tomorrow={tomorrow}
                     week={week}

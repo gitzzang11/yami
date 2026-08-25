@@ -20,19 +20,127 @@ export function formatKoreanDate(date: Date) {
   }).format(date);
 }
 
+export const ALLERGIES_MAP: Record<number, string> = {
+  1: "난류",
+  2: "우유",
+  3: "메밀",
+  4: "땅콩",
+  5: "대두",
+  6: "밀",
+  7: "고등어",
+  8: "게",
+  9: "새우",
+  10: "돼지고기",
+  11: "복숭아",
+  12: "토마토",
+  13: "아황산염",
+  14: "호두",
+  15: "닭고기",
+  16: "쇠고기",
+  17: "오징어",
+  18: "조개류",
+  19: "잣",
+};
+
+export type ParsedMenuItem = {
+  name: string;
+  allergies: number[];
+  raw: string;
+};
+
+export function parseMenuWithAllergies(rawMenu: string): ParsedMenuItem[] {
+  if (!rawMenu) return [];
+  const lines = rawMenu.replace(/<br\/?>/gi, "\n").split(/\n|,/);
+  return lines
+    .map((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return null;
+
+      // Extract allergy numbers like (1.2.5.6) or (1,2,5,6) or (13.) or 1.2.5.
+      const match = trimmed.match(/\(([\d\s.,]+)\)/);
+      const allergies: number[] = [];
+      if (match && match[1]) {
+        const nums = match[1].split(/[.,\s]+/).filter(Boolean).map(Number);
+        for (const num of nums) {
+          if (!isNaN(num) && num >= 1 && num <= 19) {
+            allergies.push(num);
+          }
+        }
+      }
+
+      const cleanName = trimmed
+        .replace(/\([\d\s.,]+\)/g, "")
+        .replace(/[0-9.]+\s*$/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      return {
+        name: cleanName || trimmed,
+        allergies: Array.from(new Set(allergies)).sort((a, b) => a - b),
+        raw: trimmed,
+      };
+    })
+    .filter((item): item is ParsedMenuItem => item !== null && item.name.length > 0);
+}
+
 export function stripMenuNoise(value: string) {
-  return value
-    .replace(/<br\/?>/gi, "\n")
-    .replace(/\([0-9.]+\)/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return parseMenuWithAllergies(value)
+    .map((item) => item.name)
+    .join("\n");
 }
 
 export function splitMenu(value: string) {
-  return stripMenuNoise(value)
-    .split(/\n|,/)
-    .map((item) => item.trim())
+  return parseMenuWithAllergies(value).map((item) => item.name);
+}
+
+export type ParsedNutrition = {
+  carbs?: number;
+  protein?: number;
+  fat?: number;
+  calories?: number;
+  sodium?: number;
+  items: { label: string; value: string }[];
+};
+
+export function parseNutritionInfo(nutritionStr?: string, caloriesStr?: string): ParsedNutrition {
+  const result: ParsedNutrition = { items: [] };
+  if (caloriesStr) {
+    const calMatch = caloriesStr.match(/([\d,.]+)\s*k?cal/i) || caloriesStr.match(/([\d,.]+)/);
+    if (calMatch) {
+      result.calories = parseFloat(calMatch[1].replace(/,/g, ""));
+    }
+  }
+
+  if (!nutritionStr) return result;
+
+  const lines = nutritionStr
+    .replace(/<br\/?>/gi, "\n")
+    .split(/\n/)
+    .map((l) => l.trim())
     .filter(Boolean);
+
+  for (const line of lines) {
+    const parts = line.split(":");
+    if (parts.length >= 2) {
+      const label = parts[0].trim();
+      const value = parts.slice(1).join(":").trim();
+      result.items.push({ label, value });
+
+      const numMatch = value.match(/([\d,.]+)/);
+      const num = numMatch ? parseFloat(numMatch[1].replace(/,/g, "")) : undefined;
+
+      if (num !== undefined && !isNaN(num)) {
+        if (label.includes("탄수화물")) result.carbs = num;
+        else if (label.includes("단백질")) result.protein = num;
+        else if (label.includes("지방") && !label.includes("포화") && !label.includes("트랜스")) result.fat = num;
+        else if (label.includes("나트륨")) result.sodium = num;
+      }
+    } else {
+      result.items.push({ label: "정보", value: line });
+    }
+  }
+
+  return result;
 }
 
 export function scoreTone(score?: number) {

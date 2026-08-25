@@ -17,6 +17,12 @@ class MealCriticDB extends Dexie {
       reviews: "id, mealId, date, totalScore, createdAt",
       criteria: "id, enabled",
     });
+    this.version(2).stores({
+      schools: "id, name, officeCode, schoolCode",
+      meals: "id, date, schoolCode, kind, [schoolCode+date], [schoolCode+date+kind]",
+      reviews: "id, mealId, schoolCode, date, mealKind, totalScore, createdAt, [schoolCode+date], [schoolCode+createdAt]",
+      criteria: "id, enabled",
+    });
   }
 }
 

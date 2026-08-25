@@ -1,7 +1,7 @@
-﻿import { addDays } from "date-fns";
+import { addDays } from "date-fns";
 import { db } from "@/db/app-db";
-import { splitMenu, yyyymmdd } from "@/lib/utils";
-import type { Meal, NeisMealRow, School } from "@/types";
+import { parseMenuWithAllergies, yyyymmdd } from "@/lib/utils";
+import type { Meal, MealKind, NeisMealRow, School } from "@/types";
 
 const BASE_URL = "https://open.neis.go.kr/hub";
 
@@ -58,7 +58,7 @@ export async function searchSchools(query: string, apiKey?: string): Promise<Sch
   return schools;
 }
 
-function mealKind(kindName: string): Meal["kind"] {
+export function mealKind(kindName: string): MealKind {
   if (kindName.includes("조식")) return "breakfast";
   if (kindName.includes("석식")) return "dinner";
   return "lunch";
@@ -66,6 +66,7 @@ function mealKind(kindName: string): Meal["kind"] {
 
 function toMeal(row: NeisMealRow, fallbackSchool: School): Meal {
   const kind = mealKind(row.MMEAL_SC_NM);
+  const menuItems = parseMenuWithAllergies(row.DDISH_NM);
   return {
     id: `${row.SD_SCHUL_CODE}-${row.MLSV_YMD}-${kind}`,
     officeCode: row.ATPT_OFCDC_SC_CODE,
@@ -75,7 +76,8 @@ function toMeal(row: NeisMealRow, fallbackSchool: School): Meal {
     kind,
     kindName: row.MMEAL_SC_NM,
     rawMenu: row.DDISH_NM,
-    menu: splitMenu(row.DDISH_NM),
+    menu: menuItems.map((item) => item.name),
+    menuItems,
     calories: row.CAL_INFO,
     nutrition: row.NTR_INFO,
     origin: row.ORPLC_INFO,
@@ -88,6 +90,7 @@ export async function getMealsByRange(
   from: Date,
   to: Date,
   apiKey?: string,
+  kind?: MealKind,
 ): Promise<Meal[]> {
   const start = yyyymmdd(from);
   const end = yyyymmdd(to);
@@ -102,28 +105,28 @@ export async function getMealsByRange(
         MLSV_TO_YMD: end,
       },
     );
-    const meals = (data.mealServiceDietInfo?.[1]?.row ?? [])
-      .map((row) => toMeal(row, school))
-      .filter((meal) => meal.kind === "lunch");
+    const meals = (data.mealServiceDietInfo?.[1]?.row ?? []).map((row) => toMeal(row, school));
     if (meals.length > 0) {
       await db.meals.bulkPut(meals);
     }
-    return meals;
+    const filtered = kind ? meals.filter((meal) => meal.kind === kind) : meals;
+    return filtered.sort((a, b) => a.date.localeCompare(b.date));
   } catch (error) {
     const cached = await db.meals
       .where("[schoolCode+date]")
       .between([school.schoolCode, start], [school.schoolCode, end], true, true)
       .toArray();
     if (cached.length > 0) {
-      return cached.sort((a, b) => a.date.localeCompare(b.date));
+      const filtered = kind ? cached.filter((meal) => meal.kind === kind) : cached;
+      return filtered.sort((a, b) => a.date.localeCompare(b.date));
     }
     throw error;
   }
 }
 
-export async function getTodayTomorrowWeek(school: School, apiKey?: string) {
+export async function getTodayTomorrowWeek(school: School, apiKey?: string, kind: MealKind = "lunch") {
   const today = new Date();
-  const meals = await getMealsByRange(school, today, addDays(today, 6), apiKey);
+  const meals = await getMealsByRange(school, today, addDays(today, 6), apiKey, kind);
   return {
     today: meals.find((meal) => meal.date === yyyymmdd(today)),
     tomorrow: meals.find((meal) => meal.date === yyyymmdd(addDays(today, 1))),

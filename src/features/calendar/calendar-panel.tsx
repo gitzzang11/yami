@@ -13,20 +13,27 @@ import {
   isSameDay,
   format,
 } from "date-fns";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Sparkles, Utensils } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Sparkles, Utensils } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { db } from "@/db/app-db";
-import { scoreTone, formatKoreanDate } from "@/lib/utils";
+import { formatKoreanDate, parseNutritionInfo, scoreTone } from "@/lib/utils";
 import { evaluateMealWithGemini } from "@/services/gemini";
 import { getMealsByRange } from "@/services/neis";
 import { useAppStore } from "@/stores/app-store";
-import type { AiReview, Meal } from "@/types";
+import type { AiReview, Meal, MealKind } from "@/types";
+
+const MEAL_KIND_LABELS: Record<MealKind, string> = {
+  breakfast: "조식",
+  lunch: "중식",
+  dinner: "석식",
+};
 
 export function CalendarPanel() {
   const { settings, criteria } = useAppStore();
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
+  const [calendarKind, setCalendarKind] = useState<MealKind>(settings.preferredMealKind ?? "lunch");
   const [meals, setMeals] = useState<Meal[]>([]);
   const [reviews, setReviews] = useState<AiReview[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -34,8 +41,10 @@ export function CalendarPanel() {
   const [isPending, startTransition] = useTransition();
   const [isNutritionOpen, setIsNutritionOpen] = useState(false);
 
-  // 급식 및 AI 평가 데이터 가져오기
-  const loadMonthData = useCallback(async (month: Date) => {
+  const userAllergies = settings.userAllergies ?? [];
+
+  // 급식 및 AI 평가 데이터 가져오기 (학교 코드 격리 적용)
+  const loadMonthData = useCallback(async (month: Date, kind: MealKind) => {
     if (!settings.selectedSchool) return;
     setIsLoading(true);
     try {
@@ -47,16 +56,18 @@ export function CalendarPanel() {
         settings.selectedSchool,
         start,
         end,
-        settings.neisApiKey
+        settings.neisApiKey,
+        kind,
       );
       setMeals(fetchedMeals);
 
-      // 2. IndexedDB에서 한 달 치 AI 리뷰 조회
+      // 2. IndexedDB에서 해당 학교의 한 달 치 AI 리뷰 조회 (schoolCode 격리)
       const startStr = format(start, "yyyyMMdd");
       const endStr = format(end, "yyyyMMdd");
       const fetchedReviews = await db.reviews
-        .where("date")
-        .between(startStr, endStr, true, true)
+        .where("schoolCode")
+        .equals(settings.selectedSchool.schoolCode)
+        .filter((r) => r.date >= startStr && r.date <= endStr && (!r.mealKind || r.mealKind === kind))
         .toArray();
       setReviews(fetchedReviews);
     } catch (error) {
@@ -68,10 +79,10 @@ export function CalendarPanel() {
 
   useEffect(() => {
     const task = window.setTimeout(() => {
-      void loadMonthData(currentMonth);
+      void loadMonthData(currentMonth, calendarKind);
     }, 0);
     return () => window.clearTimeout(task);
-  }, [currentMonth, loadMonthData]);
+  }, [currentMonth, calendarKind, loadMonthData]);
 
   // 달력 날짜 연산
   const monthStart = startOfMonth(currentMonth);
@@ -101,6 +112,7 @@ export function CalendarPanel() {
   const selectedMeal = mealMap.get(selectedDateStr);
   const selectedReview = reviewMap.get(selectedDateStr);
   const selectedTone = scoreTone(selectedReview?.totalScore);
+  const selectedNutrition = parseNutritionInfo(selectedMeal?.nutrition, selectedMeal?.calories);
 
   // 실시간 AI 평가 트리거
   const handleEvaluate = () => {
@@ -115,7 +127,7 @@ export function CalendarPanel() {
           settings.selectedSchool?.kind
         );
         // 캐시 데이터 새로 불러오기
-        await loadMonthData(currentMonth);
+        await loadMonthData(currentMonth, calendarKind);
       } catch (error) {
         alert(error instanceof Error ? error.message : "평가에 실패했습니다.");
       }
@@ -145,6 +157,27 @@ export function CalendarPanel() {
           </Button>
         </div>
       </motion.header>
+
+      {/* 조식 / 중식 / 석식 토글 */}
+      <div className="flex rounded-full bg-zinc-200/70 p-1 dark:bg-white/10">
+        {(["breakfast", "lunch", "dinner"] as MealKind[]).map((kind) => {
+          const isActive = calendarKind === kind;
+          return (
+            <button
+              key={kind}
+              type="button"
+              onClick={() => setCalendarKind(kind)}
+              className={`flex-1 rounded-full py-1.5 text-xs font-black transition cursor-pointer relative ${
+                isActive
+                  ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-900 dark:text-white"
+                  : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+              }`}
+            >
+              {MEAL_KIND_LABELS[kind]}
+            </button>
+          );
+        })}
+      </div>
 
       {/* 캘린더 그리드 */}
       <Card className="p-3">
@@ -226,7 +259,9 @@ export function CalendarPanel() {
           className="space-y-4"
         >
           <div className="flex items-center justify-between border-b pb-2 border-zinc-200 dark:border-zinc-800">
-            <h2 className="text-lg font-black">{formatKoreanDate(selectedDate)}</h2>
+            <h2 className="text-lg font-black">
+              {formatKoreanDate(selectedDate)} ({MEAL_KIND_LABELS[calendarKind]})
+            </h2>
             {selectedMeal && (
               <button
                 onClick={() => setIsNutritionOpen(true)}
@@ -248,14 +283,38 @@ export function CalendarPanel() {
                   급식 식단
                 </CardTitle>
                 <div className="flex flex-wrap gap-2">
-                  {selectedMeal.menu.map((item) => (
-                    <span
-                      key={item}
-                      className="rounded-full bg-white/70 px-3 py-1.5 text-xs font-bold shadow-sm dark:bg-white/10"
-                    >
-                      {item}
-                    </span>
-                  ))}
+                  {selectedMeal.menuItems && selectedMeal.menuItems.length > 0
+                    ? selectedMeal.menuItems.map((item) => {
+                        const hasAllergy =
+                          userAllergies.length > 0 &&
+                          item.allergies.some((a) => userAllergies.includes(a));
+                        return (
+                          <span
+                            key={item.raw || item.name}
+                            className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold shadow-sm ${
+                              hasAllergy
+                                ? "bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-200 ring-1 ring-rose-300 dark:ring-rose-800"
+                                : "bg-white/70 text-zinc-900 dark:bg-white/10 dark:text-white"
+                            }`}
+                          >
+                            {hasAllergy && <AlertTriangle className="h-3 w-3 text-rose-600" />}
+                            <span>{item.name}</span>
+                            {item.allergies.length > 0 && (
+                              <span className="text-[10px] text-zinc-400 font-normal">
+                                ({item.allergies.join(".")})
+                              </span>
+                            )}
+                          </span>
+                        );
+                      })
+                    : selectedMeal.menu.map((item) => (
+                        <span
+                          key={item}
+                          className="rounded-full bg-white/70 px-3 py-1.5 text-xs font-bold shadow-sm dark:bg-white/10"
+                        >
+                          {item}
+                        </span>
+                      ))}
                 </div>
               </Card>
 
@@ -329,7 +388,7 @@ export function CalendarPanel() {
             </div>
           ) : (
             <Card className="p-8 text-center text-sm font-semibold text-zinc-500 dark:bg-white/5">
-              이 날은 급식이 없거나 등록되지 않은 날입니다.
+              이 날은 {MEAL_KIND_LABELS[calendarKind]} 정보가 등록되지 않은 날입니다.
             </Card>
           )}
         </motion.div>
@@ -361,6 +420,24 @@ export function CalendarPanel() {
                   {formatKoreanDate(selectedDate)} 영양 정보
                 </h3>
               </div>
+
+              {/* 매크로 카드 */}
+              {(selectedNutrition.carbs !== undefined || selectedNutrition.protein !== undefined || selectedNutrition.fat !== undefined) && (
+                <div className="grid grid-cols-3 gap-2 text-center rounded-2xl bg-zinc-50 p-3 dark:bg-white/5">
+                  <div className="rounded-xl bg-amber-500/10 p-2 text-amber-700 dark:text-amber-300">
+                    <div className="text-[10px] font-semibold">탄수화물</div>
+                    <div className="text-xs font-black">{selectedNutrition.carbs ?? "-"}g</div>
+                  </div>
+                  <div className="rounded-xl bg-emerald-500/10 p-2 text-emerald-700 dark:text-emerald-300">
+                    <div className="text-[10px] font-semibold">단백질</div>
+                    <div className="text-xs font-black">{selectedNutrition.protein ?? "-"}g</div>
+                  </div>
+                  <div className="rounded-xl bg-rose-500/10 p-2 text-rose-700 dark:text-rose-300">
+                    <div className="text-[10px] font-semibold">지방</div>
+                    <div className="text-xs font-black">{selectedNutrition.fat ?? "-"}g</div>
+                  </div>
+                </div>
+              )}
 
               <div className="max-h-60 overflow-y-auto rounded-2xl bg-zinc-50 p-4 dark:bg-white/5">
                 <p className="whitespace-pre-line text-sm leading-6 text-zinc-600 dark:text-zinc-300">

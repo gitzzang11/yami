@@ -97,6 +97,40 @@ function clampScore(value: unknown, max: number) {
   return Math.max(0, Math.min(max, Math.round(number)));
 }
 
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 2,
+  initialDelayMs = 1200,
+): Promise<Response> {
+  let attempt = 0;
+  let delay = initialDelayMs;
+
+  while (attempt <= maxRetries) {
+    try {
+      const response = await fetch(url, options);
+      if (response.status === 429 || response.status === 503) {
+        if (attempt < maxRetries) {
+          attempt++;
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          delay *= 2;
+          continue;
+        }
+      }
+      return response;
+    } catch (err) {
+      if (attempt < maxRetries) {
+        attempt++;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        delay *= 2;
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error("요청 재시도 횟수를 초과했습니다.");
+}
+
 export async function evaluateMealWithGemini(
   meal: Meal,
   criteria: Criterion[],
@@ -132,20 +166,54 @@ export async function evaluateMealWithGemini(
     "- 영양 배치가 훌륭하고 트렌디한 메뉴 구성이거나, 보기만 해도 군침이 도는 훌륭한 특식이 나온 날은 아낌없이 90점~98점대의 높은 극찬 점수를 부여하세요.",
     "- 점수의 폭(30점대부터 90점대 후반까지)을 과감하고 예리하게 다변화하여 비평의 개성을 드러내세요.",
     `아래 학교 급식을 ${persona} 평가하세요.`,
-    "반드시 JSON 객체만 출력하세요. 마크다운, 설명문, 코드블록은 출력하지 마세요.",
-    "JSON 스키마:",
-    '{"totalScore": number, "oneLine": "35자 이하", "detail": "상세 평가", "scores": [{"name": string, "score": number, "max": number, "comment": string}], "customScores": [{"name": string, "score": number, "max": number, "comment": string}]}',
     "평가 항목과 만점: 맛과 조화 30점, 트렌드와 선호도 25점, 영양 균형 15점, 메뉴 다양성 10점, 구성 완성도 10점, 특별성 10점.",
     `커스텀 선호 기준(활성화된 각 항목을 10점 만점으로 별도 평가하고 가중치를 코멘트에 언급하세요):\n${activeCriteria || "- 없음"}`,
-    "주의: 커스텀 선호 기준이 제공된 경우, 제공된 각 항목명(label)을 customScores 배열의 name으로 맵핑하여 10점 만점 기준 점수와 가중치 언급 코멘트를 반드시 작성하세요. 기준이 없다면 customScores는 빈 배열로 반환하세요.",
+    "주의: 커스텀 선호 기준이 제공된 경우, 제공된 각 항목명(label)을 customScores 배열의 name으로 맵핑하여 10점 만점 기준 점수와 가중치 언급 코멘트를 작성하세요. 기준이 없다면 customScores는 빈 배열로 반환하세요.",
     `평가 시 고려사항: ${nutritionTip}`,
     `급식 날짜: ${meal.date}`,
+    `식사 종류: ${meal.kindName || meal.kind}`,
     `메뉴: ${meal.menu.join(", ")}`,
     `칼로리: ${meal.calories ?? "정보 없음"}`,
     `영양정보: ${meal.nutrition ?? "정보 없음"}`,
   ].join("\n\n");
- 
-  const response = await fetch(
+
+  const responseSchema = {
+    type: "OBJECT",
+    properties: {
+      totalScore: { type: "INTEGER", description: "0~100 사이의 총점" },
+      oneLine: { type: "STRING", description: "35자 이내의 위트 있고 직관적인 한줄평" },
+      detail: { type: "STRING", description: "식단 구성과 맛의 조화에 대한 상세 비평" },
+      scores: {
+        type: "ARRAY",
+        items: {
+          type: "OBJECT",
+          properties: {
+            name: { type: "STRING" },
+            score: { type: "INTEGER" },
+            max: { type: "INTEGER" },
+            comment: { type: "STRING" },
+          },
+          required: ["name", "score", "max", "comment"],
+        },
+      },
+      customScores: {
+        type: "ARRAY",
+        items: {
+          type: "OBJECT",
+          properties: {
+            name: { type: "STRING" },
+            score: { type: "INTEGER" },
+            max: { type: "INTEGER" },
+            comment: { type: "STRING" },
+          },
+          required: ["name", "score", "max", "comment"],
+        },
+      },
+    },
+    required: ["totalScore", "oneLine", "detail", "scores"],
+  };
+
+  const response = await fetchWithRetry(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`,
     {
       method: "POST",
@@ -155,14 +223,25 @@ export async function evaluateMealWithGemini(
         generationConfig: {
           temperature: 0.82,
           responseMimeType: "application/json",
+          responseSchema,
         },
       }),
     },
   );
 
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(`Gemini 평가 요청에 실패했습니다. ${message.slice(0, 120)}`);
+    const errorText = await response.text();
+    let message = response.statusText;
+    try {
+      const errJson = JSON.parse(errorText);
+      message = errJson.error?.message || message;
+    } catch {
+      message = errorText.slice(0, 120);
+    }
+    if (response.status === 429) {
+      throw new Error("Gemini API 무료 요청 한도를 초과했습니다. 잠시 후(약 1분 뒤) 다시 시도해 주세요.");
+    }
+    throw new Error(`Gemini 평가 요청 실패 (${message})`);
   }
 
   const payload = await response.json();
@@ -222,7 +301,9 @@ export async function evaluateMealWithGemini(
   const review: AiReview = {
     id: `${meal.id}-${Date.now()}`,
     mealId: meal.id,
+    schoolCode: meal.schoolCode,
     date: meal.date,
+    mealKind: meal.kind,
     totalScore,
     oneLine: (parsed.oneLine || "오늘 급식은 균형감 있게 무난해요").slice(0, 35),
     detail: parsed.detail || "상세 평가가 제공되지 않았습니다.",

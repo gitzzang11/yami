@@ -9,6 +9,12 @@ export type School = {
   kind: string;
 };
 
+export type MenuItem = {
+  name: string;
+  allergies: number[];
+  raw: string;
+};
+
 export type Meal = {
   id: string;
   officeCode: string;
@@ -18,6 +24,7 @@ export type Meal = {
   kind: MealKind;
   kindName: string;
   menu: string[];
+  menuItems?: MenuItem[];
   rawMenu: string;
   calories?: string;
   nutrition?: string;
@@ -42,7 +49,9 @@ export type AiCriterionScore = {
 export type AiReview = {
   id: string;
   mealId: string;
+  schoolCode: string;
   date: string;
+  mealKind?: MealKind;
   totalScore: number;
   oneLine: string;
   detail: string;
@@ -68,6 +77,8 @@ export type AppSettings = {
   notificationsEnabled: boolean;
   notificationTime: string;
   selectedSchool?: School;
+  userAllergies?: number[];
+  preferredMealKind?: MealKind;
 };
 
 export type LoadState = "idle" | "loading" | "success" | "empty" | "error";
