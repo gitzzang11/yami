@@ -7,6 +7,9 @@
 </p>
 
 <p align="center">
+  <a href="https://gitzzang11.github.io/yami/">
+    <img src="https://img.shields.io/badge/Live_Demo-웹에서_바로_체험하기-10b981?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Live Demo" />
+  </a>
   <a href="https://github.com/gitzzang11/yami/releases/latest">
     <img src="https://img.shields.io/github/v/release/gitzzang11/yami?style=for-the-badge&color=0ea5e9&label=Release" alt="Latest Release" />
   </a>
@@ -18,6 +21,7 @@
 </p>
 
 <p align="center">
+  <a href="https://gitzzang11.github.io/yami/"><strong>🌐 웹 데모 바로가기</strong></a> •
   <a href="#-주요-기능">주요 기능</a> •
   <a href="#-기술-스택">기술 스택</a> •
   <a href="#-시작하기">시작하기</a> •
