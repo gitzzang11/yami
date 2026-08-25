@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { db } from "@/db/app-db";
+import { getUserMealFeedback } from "@/services/feedback";
 import { getLatestReview } from "@/services/gemini";
-import { getTodayTomorrowWeek } from "@/services/neis";
-import type { AiReview, LoadState, Meal, MealKind, School } from "@/types";
+import { getSchoolSchedulesByRange, getTodayTomorrowWeek } from "@/services/neis";
+import type { AiReview, LoadState, Meal, MealKind, School, SchoolScheduleEvent, UserMealFeedback } from "@/types";
 
 export function useMealData(school?: School, neisApiKey?: string, initialKind: MealKind = "lunch") {
   const [mealKind, setMealKind] = useState<MealKind>(initialKind);
@@ -12,6 +13,8 @@ export function useMealData(school?: School, neisApiKey?: string, initialKind: M
   const [tomorrow, setTomorrow] = useState<Meal>();
   const [week, setWeek] = useState<Meal[]>([]);
   const [review, setReview] = useState<AiReview>();
+  const [todaySchedules, setTodaySchedules] = useState<SchoolScheduleEvent[]>([]);
+  const [todayFeedback, setTodayFeedback] = useState<UserMealFeedback>();
   const [state, setState] = useState<LoadState>("idle");
   const [error, setError] = useState("");
   const [offline, setOffline] = useState(false);
@@ -19,21 +22,39 @@ export function useMealData(school?: School, neisApiKey?: string, initialKind: M
   const load = useCallback(async () => {
     if (!school) {
       setState("empty");
+      setTodaySchedules([]);
+      setTodayFeedback(undefined);
       return;
     }
     setState("loading");
     setError("");
     try {
-      const data = await getTodayTomorrowWeek(school, neisApiKey, mealKind);
+      const todayDate = new Date();
+      const [data, fetchedSchedules] = await Promise.all([
+        getTodayTomorrowWeek(school, neisApiKey, mealKind),
+        getSchoolSchedulesByRange(school, todayDate, todayDate, neisApiKey),
+      ]);
       setToday(data.today);
       setTomorrow(data.tomorrow);
       setWeek(data.week);
+      setTodaySchedules(fetchedSchedules);
       setOffline(false);
       setState(data.today || data.week.length ? "success" : "empty");
       if (data.today) {
-        setReview(await getLatestReview(data.today.id));
+        const [latestReview, feedback] = await Promise.all([
+          getLatestReview(
+            data.today.id,
+            school.schoolCode,
+            data.today.date,
+            mealKind,
+          ),
+          getUserMealFeedback(school.schoolCode, data.today.date, mealKind),
+        ]);
+        setReview(latestReview);
+        setTodayFeedback(feedback);
       } else {
         setReview(undefined);
+        setTodayFeedback(undefined);
       }
     } catch (err) {
       const cached = await db.meals
@@ -45,7 +66,17 @@ export function useMealData(school?: School, neisApiKey?: string, initialKind: M
       setWeek(cached.slice(0, 7).reverse());
       setToday(cached[0]);
       if (cached[0]) {
-        setReview(await getLatestReview(cached[0].id));
+        const [latestReview, feedback] = await Promise.all([
+          getLatestReview(
+            cached[0].id,
+            school.schoolCode,
+            cached[0].date,
+            mealKind,
+          ),
+          getUserMealFeedback(school.schoolCode, cached[0].date, mealKind),
+        ]);
+        setReview(latestReview);
+        setTodayFeedback(feedback);
         setOffline(true);
         setState("success");
       } else {
@@ -70,6 +101,9 @@ export function useMealData(school?: School, neisApiKey?: string, initialKind: M
     week,
     review,
     setReview,
+    todaySchedules,
+    todayFeedback,
+    setTodayFeedback,
     state,
     error,
     offline,

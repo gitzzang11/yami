@@ -19,7 +19,7 @@ export async function requestNotificationPermission() {
   return permission.display === "granted";
 }
 
-function isHoliday(date: Date): boolean {
+export function isHoliday(date: Date): boolean {
   const year = date.getFullYear();
   const month = date.getMonth() + 1;
   const day = date.getDate();
@@ -281,5 +281,90 @@ export async function sendTestNotification(meal?: Meal, review?: AiReview) {
 
   await LocalNotifications.schedule({
     notifications: [{ id: 1002, title, body, schedule: { at: new Date(Date.now() + 1000) } }],
+  });
+}
+
+export async function scheduleKeywordMealNotifications(
+  time: string,
+  keywords: string[],
+  schoolCode?: string,
+) {
+  if (!keywords || keywords.length === 0 || !schoolCode) return;
+  const [hour, minute] = time.split(":").map(Number);
+
+  if (!Capacitor.isNativePlatform()) return;
+
+  try {
+    const today = new Date();
+    const startStr = yyyymmdd(today);
+    const endStr = yyyymmdd(addDays(today, 14));
+
+    const upcomingMeals = await db.meals
+      .where("schoolCode")
+      .equals(schoolCode)
+      .filter((m) => m.date >= startStr && m.date <= endStr)
+      .toArray();
+
+    const notificationsToSchedule = [];
+
+    for (const meal of upcomingMeals) {
+      const year = Number(meal.date.slice(0, 4));
+      const month = Number(meal.date.slice(4, 6)) - 1;
+      const day = Number(meal.date.slice(6, 8));
+      const targetDate = new Date(year, month, day, hour, minute, 0, 0);
+
+      // 이미 지난 시간이나 주말/휴일은 제외
+      if (targetDate.getTime() <= Date.now()) continue;
+      const dayOfWeek = targetDate.getDay();
+      if (dayOfWeek === 0 || dayOfWeek === 6 || isHoliday(targetDate)) continue;
+
+      const matchedMenus = meal.menu.filter((m) =>
+        keywords.some((k) => m.toLowerCase().includes(k.toLowerCase())),
+      );
+
+      if (matchedMenus.length > 0) {
+        const firstKeyword = keywords.find((k) =>
+          matchedMenus[0].toLowerCase().includes(k.toLowerCase()),
+        ) || keywords[0];
+
+        const title = `⭐ 최애 메뉴 등장! (${firstKeyword})`;
+        const body = `오늘 ${meal.kindName || "급식"}에 '${matchedMenus.slice(0, 2).join(", ")}'이(가) 나옵니다! 🍱`;
+
+        // 20000000 + dateStr
+        const notifId = 20000000 + (Number(meal.date) % 1000000);
+
+        notificationsToSchedule.push({
+          id: notifId,
+          title,
+          body,
+          schedule: { at: targetDate, allowWhileIdle: true },
+          smallIcon: "ic_stat_icon_config_sample",
+        });
+      }
+    }
+
+    if (notificationsToSchedule.length > 0) {
+      await LocalNotifications.schedule({
+        notifications: notificationsToSchedule,
+      });
+    }
+  } catch (e) {
+    console.error("최애 메뉴 키워드 알림 등록 실패", e);
+  }
+}
+
+export async function sendTestKeywordNotification(keyword = "치킨", menuName = "뿌링클 순살 치킨") {
+  const title = `⭐ 최애 메뉴 등장! (${keyword})`;
+  const body = `오늘 급식에 '${menuName}'(이)가 나옵니다! 🍱`;
+
+  if (!Capacitor.isNativePlatform()) {
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification(title, { body, icon: "/icons/icon-192.png" });
+    }
+    return;
+  }
+
+  await LocalNotifications.schedule({
+    notifications: [{ id: 1003, title, body, schedule: { at: new Date(Date.now() + 1000) } }],
   });
 }

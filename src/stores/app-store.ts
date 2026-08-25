@@ -22,6 +22,9 @@ const defaultSettings: AppSettings = {
   notificationTime: "07:30",
   userAllergies: [],
   preferredMealKind: "lunch",
+  favoriteKeywords: ["치킨", "돈까스", "마라탕", "스파게티", "와플"],
+  keywordNotificationsEnabled: false,
+  criticPersona: "student",
 };
 
 type AppStore = {
@@ -31,6 +34,9 @@ type AppStore = {
   setHydrated: (value: boolean) => void;
   updateSettings: (settings: Partial<AppSettings>) => void;
   toggleAllergy: (allergyId: number) => void;
+  addFavoriteKeyword: (keyword: string) => void;
+  removeFavoriteKeyword: (keyword: string) => void;
+  toggleFavoriteKeyword: (keyword: string) => void;
   setSchool: (school: School) => void;
   addCriterion: (label: string) => void;
   updateCriterion: (id: string, updates: Partial<Criterion>) => void;
@@ -53,6 +59,29 @@ export const useAppStore = create<AppStore>()(
             ? current.filter((id) => id !== allergyId)
             : [...current, allergyId];
           return { settings: { ...state.settings, userAllergies: next } };
+        }),
+      addFavoriteKeyword: (keyword) =>
+        set((state) => {
+          const trimmed = keyword.trim();
+          if (!trimmed) return state;
+          const current = state.settings.favoriteKeywords ?? [];
+          if (current.includes(trimmed)) return state;
+          return { settings: { ...state.settings, favoriteKeywords: [...current, trimmed] } };
+        }),
+      removeFavoriteKeyword: (keyword) =>
+        set((state) => {
+          const current = state.settings.favoriteKeywords ?? [];
+          return { settings: { ...state.settings, favoriteKeywords: current.filter((k) => k !== keyword) } };
+        }),
+      toggleFavoriteKeyword: (keyword) =>
+        set((state) => {
+          const trimmed = keyword.trim();
+          if (!trimmed) return state;
+          const current = state.settings.favoriteKeywords ?? [];
+          const next = current.includes(trimmed)
+            ? current.filter((k) => k !== trimmed)
+            : [...current, trimmed];
+          return { settings: { ...state.settings, favoriteKeywords: next } };
         }),
       setSchool: (school) =>
         set((state) => ({ settings: { ...state.settings, selectedSchool: school } })),

@@ -13,7 +13,7 @@ import { StatsPanel } from "@/features/stats/stats-panel";
 import { useMealData } from "@/hooks/use-meal-data";
 import { usePwa } from "@/hooks/use-pwa";
 import { useAppStore } from "@/stores/app-store";
-import { scheduleDailyMealNotification, disableMealNotification } from "@/services/notifications";
+import { scheduleDailyMealNotification, disableMealNotification, scheduleKeywordMealNotifications } from "@/services/notifications";
 import { NotificationToast } from "@/components/ui/toast";
 
 export default function App() {
@@ -36,6 +36,9 @@ export default function App() {
     week,
     review,
     setReview,
+    todaySchedules,
+    todayFeedback,
+    setTodayFeedback,
     state,
     error,
     offline,
@@ -63,7 +66,24 @@ export default function App() {
         console.error("알림 잔여 취소 실패", err),
       );
     }
-  }, [hasHydrated, settings.notificationsEnabled, settings.notificationTime, today, review]);
+
+    if (settings.keywordNotificationsEnabled && settings.selectedSchool) {
+      scheduleKeywordMealNotifications(
+        settings.notificationTime,
+        settings.favoriteKeywords ?? [],
+        settings.selectedSchool.schoolCode,
+      ).catch((err) => console.error("최애 메뉴 키워드 알림 갱신 실패", err));
+    }
+  }, [
+    hasHydrated,
+    settings.notificationsEnabled,
+    settings.keywordNotificationsEnabled,
+    settings.notificationTime,
+    settings.favoriteKeywords,
+    settings.selectedSchool,
+    today,
+    review,
+  ]);
 
   if (!hasHydrated) {
     return <main className="min-h-dvh bg-app" />;
@@ -167,6 +187,9 @@ export default function App() {
                     tomorrow={tomorrow}
                     week={week}
                     review={review}
+                    todaySchedules={todaySchedules}
+                    feedback={todayFeedback}
+                    onFeedbackChange={setTodayFeedback}
                     state={state}
                     error={error}
                     offline={offline}

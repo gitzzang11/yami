@@ -13,21 +13,58 @@ import {
   isSameDay,
   format,
 } from "date-fns";
-import { AlertTriangle, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Sparkles, Utensils } from "lucide-react";
+import { AlertTriangle, BookOpen, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Sparkles, Star, Utensils } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { db } from "@/db/app-db";
 import { formatKoreanDate, parseNutritionInfo, scoreTone } from "@/lib/utils";
-import { evaluateMealWithGemini } from "@/services/gemini";
-import { getMealsByRange } from "@/services/neis";
+import { USER_REACTION_CONFIG } from "@/services/feedback";
+import { CRITIC_PERSONAS, evaluateMealWithGemini } from "@/services/gemini";
+import { getMealsByRange, getSchoolSchedulesByRange } from "@/services/neis";
 import { useAppStore } from "@/stores/app-store";
-import type { AiReview, Meal, MealKind } from "@/types";
+import type { AiReview, Meal, MealKind, ScheduleEventType, SchoolScheduleEvent, UserMealFeedback } from "@/types";
 
 const MEAL_KIND_LABELS: Record<MealKind, string> = {
   breakfast: "조식",
   lunch: "중식",
   dinner: "석식",
+};
+
+export const EVENT_TYPE_CONFIG: Record<
+  ScheduleEventType,
+  { label: string; icon: string; badgeClass: string; dotClass: string }
+> = {
+  exam: {
+    label: "시험/평가",
+    icon: "📝",
+    badgeClass: "bg-rose-100 text-rose-800 ring-rose-300 dark:bg-rose-950/60 dark:text-rose-300",
+    dotClass: "bg-rose-500",
+  },
+  vacation: {
+    label: "방학/개학",
+    icon: "🏖️",
+    badgeClass: "bg-emerald-100 text-emerald-800 ring-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300",
+    dotClass: "bg-emerald-500",
+  },
+  holiday: {
+    label: "휴업/공휴일",
+    icon: "🎈",
+    badgeClass: "bg-amber-100 text-amber-800 ring-amber-300 dark:bg-amber-950/60 dark:text-amber-300",
+    dotClass: "bg-amber-500",
+  },
+  festival: {
+    label: "행사/축제",
+    icon: "🎪",
+    badgeClass: "bg-indigo-100 text-indigo-800 ring-indigo-300 dark:bg-indigo-950/60 dark:text-indigo-300",
+    dotClass: "bg-indigo-500",
+  },
+  general: {
+    label: "일반학사",
+    icon: "📌",
+    badgeClass: "bg-zinc-100 text-zinc-800 ring-zinc-300 dark:bg-zinc-800 dark:text-zinc-300",
+    dotClass: "bg-zinc-400",
+  },
 };
 
 export function CalendarPanel() {
@@ -36,40 +73,45 @@ export function CalendarPanel() {
   const [calendarKind, setCalendarKind] = useState<MealKind>(settings.preferredMealKind ?? "lunch");
   const [meals, setMeals] = useState<Meal[]>([]);
   const [reviews, setReviews] = useState<AiReview[]>([]);
+  const [schedules, setSchedules] = useState<SchoolScheduleEvent[]>([]);
+  const [feedbacks, setFeedbacks] = useState<UserMealFeedback[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isLoading, setIsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [isNutritionOpen, setIsNutritionOpen] = useState(false);
 
   const userAllergies = settings.userAllergies ?? [];
+  const favoriteKeywords = settings.favoriteKeywords ?? [];
 
-  // 급식 및 AI 평가 데이터 가져오기 (학교 코드 격리 적용)
+  // 급식, AI 평가, 학사일정 및 내 체감 평가 데이터 동시 가져오기
   const loadMonthData = useCallback(async (month: Date, kind: MealKind) => {
     if (!settings.selectedSchool) return;
     setIsLoading(true);
     try {
       const start = startOfMonth(month);
       const end = endOfMonth(month);
-
-      // 1. NEIS API에서 한 달 치 급식 조회
-      const fetchedMeals = await getMealsByRange(
-        settings.selectedSchool,
-        start,
-        end,
-        settings.neisApiKey,
-        kind,
-      );
-      setMeals(fetchedMeals);
-
-      // 2. IndexedDB에서 해당 학교의 한 달 치 AI 리뷰 조회 (schoolCode 격리)
       const startStr = format(start, "yyyyMMdd");
       const endStr = format(end, "yyyyMMdd");
-      const fetchedReviews = await db.reviews
-        .where("schoolCode")
-        .equals(settings.selectedSchool.schoolCode)
-        .filter((r) => r.date >= startStr && r.date <= endStr && (!r.mealKind || r.mealKind === kind))
-        .toArray();
+
+      const [fetchedMeals, fetchedReviews, fetchedSchedules, fetchedFeedbacks] = await Promise.all([
+        getMealsByRange(settings.selectedSchool, start, end, settings.neisApiKey, kind),
+        db.reviews
+          .where("schoolCode")
+          .equals(settings.selectedSchool.schoolCode)
+          .filter((r) => r.date >= startStr && r.date <= endStr && (!r.mealKind || r.mealKind === kind))
+          .sortBy("createdAt"),
+        getSchoolSchedulesByRange(settings.selectedSchool, start, end, settings.neisApiKey),
+        db.userFeedbacks
+          .where("schoolCode")
+          .equals(settings.selectedSchool.schoolCode)
+          .filter((f) => f.date >= startStr && f.date <= endStr && (!f.mealKind || f.mealKind === kind))
+          .toArray(),
+      ]);
+
+      setMeals(fetchedMeals);
       setReviews(fetchedReviews);
+      setSchedules(fetchedSchedules);
+      setFeedbacks(fetchedFeedbacks);
     } catch (error) {
       console.error("캘린더 데이터를 불러오는 중 오류가 발생했습니다.", error);
     } finally {
@@ -99,6 +141,16 @@ export function CalendarPanel() {
   const reviewMap = new Map<string, AiReview>();
   reviews.forEach((r) => reviewMap.set(r.date, r));
 
+  const scheduleMap = new Map<string, SchoolScheduleEvent[]>();
+  schedules.forEach((s) => {
+    const list = scheduleMap.get(s.date) || [];
+    list.push(s);
+    scheduleMap.set(s.date, list);
+  });
+
+  const feedbackMap = new Map<string, UserMealFeedback>();
+  feedbacks.forEach((f) => feedbackMap.set(f.date, f));
+
   const handlePrevMonth = () => {
     setCurrentMonth((prev) => subMonths(prev, 1));
   };
@@ -111,6 +163,8 @@ export function CalendarPanel() {
   const selectedDateStr = format(selectedDate, "yyyyMMdd");
   const selectedMeal = mealMap.get(selectedDateStr);
   const selectedReview = reviewMap.get(selectedDateStr);
+  const selectedSchedules = scheduleMap.get(selectedDateStr) ?? [];
+  const selectedFeedback = feedbackMap.get(selectedDateStr);
   const selectedTone = scoreTone(selectedReview?.totalScore);
   const selectedNutrition = parseNutritionInfo(selectedMeal?.nutrition, selectedMeal?.calories);
 
@@ -124,7 +178,8 @@ export function CalendarPanel() {
           criteria,
           settings.geminiApiKey,
           settings.geminiModel,
-          settings.selectedSchool?.kind
+          settings.selectedSchool?.kind,
+          settings.criticPersona ?? "student",
         );
         // 캐시 데이터 새로 불러오기
         await loadMonthData(currentMonth, calendarKind);
@@ -195,11 +250,22 @@ export function CalendarPanel() {
           {days.map((day) => {
             const dateStr = format(day, "yyyyMMdd");
             const hasMeal = mealMap.has(dateStr);
+            const mealForDay = mealMap.get(dateStr);
             const review = reviewMap.get(dateStr);
+            const daySchedules = scheduleMap.get(dateStr) ?? [];
             const isCurrentMonth = isSameMonth(day, currentMonth);
             const isSelected = isSameDay(day, selectedDate);
             const isToday = isSameDay(day, new Date());
             const dayTone = scoreTone(review?.totalScore);
+
+            const hasFavorite =
+              favoriteKeywords.length > 0 &&
+              mealForDay?.menu.some((m) =>
+                favoriteKeywords.some((k) => m.toLowerCase().includes(k.toLowerCase())),
+              );
+
+            const primarySchedule = daySchedules[0];
+            const primaryScheduleConfig = primarySchedule ? EVENT_TYPE_CONFIG[primarySchedule.eventType] : null;
 
             return (
               <button
@@ -215,6 +281,26 @@ export function CalendarPanel() {
                     : "hover:bg-zinc-100 dark:hover:bg-white/5"
                 }`}
               >
+                {/* 학사 일정 아이콘 표시 (셀 좌측 상단) */}
+                {primarySchedule && (
+                  <span
+                    className="absolute top-0.5 left-1 text-[9px] leading-none"
+                    title={`${primarySchedule.eventName}${primarySchedule.gradeTarget ? ` (${primarySchedule.gradeTarget})` : ""}`}
+                  >
+                    {primaryScheduleConfig?.icon}
+                  </span>
+                )}
+
+                {/* 최애 메뉴 표시 (셀 우측 상단) */}
+                {hasFavorite && (
+                  <span
+                    className="absolute top-0.5 right-1 text-[9px] leading-none"
+                    title="최애 메뉴 출몰!"
+                  >
+                    ⭐
+                  </span>
+                )}
+
                 {/* 날짜 표시 */}
                 <span
                   className={`text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full ${
@@ -238,8 +324,14 @@ export function CalendarPanel() {
                     <span className="text-xs text-zinc-400 dark:text-zinc-500" title="평가 대기">
                       🍱
                     </span>
+                  ) : primarySchedule ? (
+                    // 급식이 없지만 학사 일정이 있는 날
+                    <div
+                      className={`w-1.5 h-1.5 rounded-full ${primaryScheduleConfig?.dotClass || "bg-zinc-400"}`}
+                      title={primarySchedule.eventName}
+                    />
                   ) : (
-                    // 급식이 없는 날은 미표시
+                    // 급식/일정 모두 없는 날
                     <div className="h-3" />
                   )}
                 </div>
@@ -274,6 +366,58 @@ export function CalendarPanel() {
             )}
           </div>
 
+          {/* 오늘의 학사 일정 카드 (일정이 있을 경우) */}
+          {selectedSchedules.length > 0 && (
+            <Card className="space-y-3 bg-gradient-to-br from-indigo-50/70 to-purple-50/70 border-indigo-200/60 dark:from-indigo-950/20 dark:to-purple-950/20 dark:border-indigo-800/40">
+              <CardTitle className="flex items-center gap-2 text-sm font-black text-indigo-950 dark:text-indigo-200">
+                <BookOpen className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                오늘의 학사 일정 ({selectedSchedules.length}건)
+              </CardTitle>
+              <div className="space-y-2">
+                {selectedSchedules.map((schedule) => {
+                  const config = EVENT_TYPE_CONFIG[schedule.eventType];
+                  return (
+                    <div
+                      key={schedule.id}
+                      className="flex items-start justify-between gap-2 rounded-2xl bg-white/90 p-3 shadow-xs ring-1 ring-black/5 dark:bg-white/5 dark:ring-white/10"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-black ring-1 ${config.badgeClass}`}
+                          >
+                            <span>{config.icon}</span>
+                            <span>{config.label}</span>
+                          </span>
+                          <span className="text-sm font-black text-zinc-900 dark:text-white">
+                            {schedule.eventName}
+                          </span>
+                        </div>
+                        {schedule.eventContent && (
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                            {schedule.eventContent}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        {schedule.gradeTarget && (
+                          <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[10px] font-bold text-zinc-600 dark:bg-white/10 dark:text-zinc-300">
+                            {schedule.gradeTarget}
+                          </span>
+                        )}
+                        {schedule.dayType && (
+                          <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400">
+                            {schedule.dayType}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
+
           {selectedMeal ? (
             <div className="space-y-4">
               {/* 급식 식단 카드 */}
@@ -288,16 +432,25 @@ export function CalendarPanel() {
                         const hasAllergy =
                           userAllergies.length > 0 &&
                           item.allergies.some((a) => userAllergies.includes(a));
+                        const isFavorite = favoriteKeywords.some((k) =>
+                          item.name.toLowerCase().includes(k.toLowerCase()),
+                        );
                         return (
                           <span
                             key={item.raw || item.name}
                             className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold shadow-sm ${
                               hasAllergy
                                 ? "bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-200 ring-1 ring-rose-300 dark:ring-rose-800"
-                                : "bg-white/70 text-zinc-900 dark:bg-white/10 dark:text-white"
+                                : isFavorite
+                                  ? "bg-amber-50/90 text-amber-900 ring-1 ring-amber-300 dark:bg-amber-950/40 dark:text-amber-100 dark:ring-amber-700"
+                                  : "bg-white/70 text-zinc-900 dark:bg-white/10 dark:text-white"
                             }`}
                           >
-                            {hasAllergy && <AlertTriangle className="h-3 w-3 text-rose-600" />}
+                            {hasAllergy ? (
+                              <AlertTriangle className="h-3 w-3 text-rose-600" />
+                            ) : isFavorite ? (
+                              <Star className="h-3 w-3 fill-amber-400 text-amber-500" />
+                            ) : null}
                             <span>{item.name}</span>
                             {item.allergies.length > 0 && (
                               <span className="text-[10px] text-zinc-400 font-normal">
@@ -307,14 +460,24 @@ export function CalendarPanel() {
                           </span>
                         );
                       })
-                    : selectedMeal.menu.map((item) => (
-                        <span
-                          key={item}
-                          className="rounded-full bg-white/70 px-3 py-1.5 text-xs font-bold shadow-sm dark:bg-white/10"
-                        >
-                          {item}
-                        </span>
-                      ))}
+                    : selectedMeal.menu.map((item) => {
+                        const isFavorite = favoriteKeywords.some((k) =>
+                          item.toLowerCase().includes(k.toLowerCase()),
+                        );
+                        return (
+                          <span
+                            key={item}
+                            className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold shadow-sm ${
+                              isFavorite
+                                ? "bg-amber-50/90 text-amber-900 ring-1 ring-amber-300 dark:bg-amber-950/40 dark:text-amber-100 dark:ring-amber-700"
+                                : "bg-white/70 text-zinc-900 dark:bg-white/10 dark:text-white"
+                            }`}
+                          >
+                            {isFavorite && <Star className="h-3 w-3 fill-amber-400 text-amber-500" />}
+                            <span>{item}</span>
+                          </span>
+                        );
+                      })}
                 </div>
               </Card>
 
@@ -322,9 +485,22 @@ export function CalendarPanel() {
               <Card className="space-y-4">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-                      AI 급식 평가
-                    </p>
+                    <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                      <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                        AI 급식 평가
+                      </p>
+                      {selectedReview?.personaName && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-black text-zinc-700 dark:bg-white/10 dark:text-zinc-300">
+                          {CRITIC_PERSONAS[selectedReview.persona || "student"]?.icon || "🎓"} {selectedReview.personaName}
+                        </span>
+                      )}
+                      {selectedFeedback && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-black text-amber-700 dark:text-amber-300 ring-1 ring-amber-400/30">
+                          <span>{USER_REACTION_CONFIG[selectedFeedback.reaction]?.emoji}</span>
+                          <span>내 체감 {selectedFeedback.score}점</span>
+                        </span>
+                      )}
+                    </div>
                     <h3 className="text-xl font-black">
                       {selectedReview ? `${selectedReview.totalScore}점` : "평가 전"}
                     </h3>
@@ -393,6 +569,52 @@ export function CalendarPanel() {
           )}
         </motion.div>
       </AnimatePresence>
+
+      {/* 이달의 주요 학사일정 타임라인 요약 카드 */}
+      {schedules.length > 0 && (
+        <Card className="space-y-3">
+          <CardTitle className="flex items-center gap-2 text-sm font-black">
+            <CalendarIcon className="h-4 w-4 text-[var(--theme)]" />
+            {format(currentMonth, "M월")} 전체 학사일정 ({schedules.length}건)
+          </CardTitle>
+          <div className="divide-y divide-zinc-100 dark:divide-zinc-800/60 max-h-56 overflow-y-auto">
+            {schedules.map((schedule) => {
+              const config = EVENT_TYPE_CONFIG[schedule.eventType];
+              const dayNum = Number(schedule.date.slice(6, 8));
+              return (
+                <button
+                  key={schedule.id}
+                  type="button"
+                  onClick={() => {
+                    const y = Number(schedule.date.slice(0, 4));
+                    const m = Number(schedule.date.slice(4, 6)) - 1;
+                    const d = Number(schedule.date.slice(6, 8));
+                    setSelectedDate(new Date(y, m, d));
+                  }}
+                  className="w-full flex items-center justify-between py-2 px-1 hover:bg-zinc-50 dark:hover:bg-white/5 rounded-xl transition cursor-pointer text-left"
+                >
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <span className="w-9 text-xs font-black text-zinc-400 dark:text-zinc-500">
+                      {dayNum}일
+                    </span>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${config.badgeClass}`}
+                    >
+                      {config.icon} {config.label}
+                    </span>
+                    <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                      {schedule.eventName}
+                    </span>
+                  </div>
+                  <div className="text-[10px] font-medium text-zinc-400 shrink-0 ml-2">
+                    {schedule.gradeTarget || ""}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* 영양 정보 팝업 모달 */}
       <AnimatePresence>
