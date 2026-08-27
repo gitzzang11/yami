@@ -70,6 +70,30 @@ export function isHoliday(date: Date): boolean {
   return false;
 }
 
+export function formatNotificationContent(
+  meal?: Meal,
+  review?: AiReview,
+): { title: string; body: string } {
+  if (!meal || !meal.menu || meal.menu.length === 0) {
+    return {
+      title: "오늘의 급식",
+      body: "급식을 확인하고 AI 평가를 받아보세요.",
+    };
+  }
+
+  const mealKind = meal.kindName || "급식";
+  const title = `오늘의 ${mealKind}${review ? ` (${review.totalScore}점)` : ""}`;
+  
+  // 전체 급식 메뉴 목록을 누락 없이 전부 포함
+  const fullMenuText = meal.menu.join(", ");
+  const reviewText = review?.oneLine ? ` · "${review.oneLine}"` : "";
+  const calText = meal.calories ? ` [${meal.calories}]` : "";
+
+  const body = `${fullMenuText}${calText}${reviewText}`;
+
+  return { title, body };
+}
+
 export async function scheduleDailyMealNotification(
   time: string,
   meal?: Meal,
@@ -112,10 +136,7 @@ export async function scheduleDailyMealNotification(
         console.error("웹 알림 폴백 조회 실패", e);
       }
     }
-    const title = finalMeal ? `오늘의 급식 ${finalReview ? `${finalReview.totalScore}점` : ""}` : "오늘의 급식";
-    const body = finalMeal
-      ? `${finalMeal.menu.slice(0, 4).join(", ")}${finalReview ? ` · ${finalReview.oneLine}` : ""}`
-      : "급식을 확인하고 AI 평가를 받아보세요.";
+    const { title, body } = formatNotificationContent(finalMeal, finalReview);
 
     if ("serviceWorker" in navigator && "Notification" in window && Notification.permission === "granted") {
       new Notification(title, { body, icon: "/icons/icon-192.png" });
@@ -192,10 +213,7 @@ export async function scheduleDailyMealNotification(
       }
     }
 
-    const title = currentMeal ? `오늘의 급식 ${currentReview ? `${currentReview.totalScore}점` : ""}` : "오늘의 급식";
-    const body = currentMeal
-      ? `${currentMeal.menu.slice(0, 4).join(", ")}${currentReview ? ` · ${currentReview.oneLine}` : ""}`
-      : "급식을 확인하고 AI 평가를 받아보세요.";
+    const { title, body } = formatNotificationContent(currentMeal, currentReview);
 
     notificationsToSchedule.push({
       id: Number(dateStr),
@@ -267,10 +285,7 @@ export async function sendTestNotification(meal?: Meal, review?: AiReview) {
     }
   }
 
-  const title = finalMeal ? `오늘의 급식 ${finalReview ? `${finalReview.totalScore}점` : ""}` : "오늘의 급식";
-  const body = finalMeal
-    ? `${finalMeal.menu.slice(0, 4).join(", ")}${finalReview ? ` · ${finalReview.oneLine}` : ""}`
-    : "급식을 확인하고 AI 평가를 받아보세요.";
+  const { title, body } = formatNotificationContent(finalMeal, finalReview);
 
   if (!Capacitor.isNativePlatform()) {
     if ("Notification" in window && Notification.permission === "granted") {
@@ -328,7 +343,7 @@ export async function scheduleKeywordMealNotifications(
         ) || keywords[0];
 
         const title = `⭐ 최애 메뉴 등장! (${firstKeyword})`;
-        const body = `오늘 ${meal.kindName || "급식"}에 '${matchedMenus.slice(0, 2).join(", ")}'이(가) 나옵니다! 🍱`;
+        const body = `오늘 ${meal.kindName || "급식"}에 '${matchedMenus.join(", ")}'이(가) 나옵니다! 🍱\n전체 메뉴: ${meal.menu.join(", ")}`;
 
         // 20000000 + dateStr
         const notifId = 20000000 + (Number(meal.date) % 1000000);
@@ -355,7 +370,7 @@ export async function scheduleKeywordMealNotifications(
 
 export async function sendTestKeywordNotification(keyword = "치킨", menuName = "뿌링클 순살 치킨") {
   const title = `⭐ 최애 메뉴 등장! (${keyword})`;
-  const body = `오늘 급식에 '${menuName}'(이)가 나옵니다! 🍱`;
+  const body = `오늘 급식에 '${menuName}'(이)가 나옵니다! 🍱\n전체 메뉴: ${menuName}, 찰현미밥, 꽃게탕, 계란찜, 깍두기`;
 
   if (!Capacitor.isNativePlatform()) {
     if ("Notification" in window && Notification.permission === "granted") {
