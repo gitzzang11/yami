@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Bell, BellOff, Check, KeyRound, Moon, Palette, Plus, RefreshCw, School, Sparkles, Star, Trash2, X } from "lucide-react";
+import { AlertTriangle, Bell, BellOff, Check, ExternalLink, Info, KeyRound, Moon, Palette, Plus, RefreshCw, School, Sparkles, Star, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -529,6 +529,42 @@ export function SettingsPanel({ today, review }: Props) {
           <Trash2 className="h-4 w-4" />
           캐시 삭제
         </Button>
+      </Card>
+
+      {/* 📱 앱 정보 & 버전 */}
+      <Card className="space-y-3 bg-gradient-to-br from-zinc-50/90 to-white dark:from-white/5 dark:to-zinc-900/40">
+        <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5 text-[var(--theme)]" /> 앱 정보</CardTitle>
+        <div className="space-y-2 rounded-2xl bg-white/60 p-4 dark:bg-white/5 border border-zinc-100 dark:border-white/5">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-black text-sm text-zinc-900 dark:text-white flex items-center gap-1.5">
+                <span>급식평론가 (Yami)</span>
+                <span className="rounded-md bg-[var(--theme)]/15 px-1.5 py-0.5 text-[10px] font-black text-[var(--theme)]">
+                  v1.2.0
+                </span>
+              </div>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                AI 급식 평가 및 NEIS 식단 관리 서비스
+              </p>
+            </div>
+            <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-2xs font-bold text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/30 whitespace-nowrap">
+              <Check className="h-3 w-3 stroke-[3]" /> 최신 버전
+            </span>
+          </div>
+
+          <div className="pt-2 border-t border-zinc-200/60 dark:border-zinc-800 flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
+            <span>릴리스 노트 & 소스코드</span>
+            <a
+              href="https://github.com/gitzzang11/yami/releases/tag/v1.2.0"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 font-bold text-[var(--theme)] hover:underline cursor-pointer"
+            >
+              <span>GitHub Release</span>
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
+        </div>
       </Card>
     </div>
   );
