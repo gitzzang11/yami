@@ -154,26 +154,26 @@ export function StatsPanel() {
       {/* 주요 통계 카드 그리드 */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Card className="p-4 text-center">
-          <div className="text-xs font-bold text-zinc-500 dark:text-zinc-400">AI 평균 평점</div>
-          <div className={`mt-1 text-2xl font-black ${scoreTone(stats.average).textClassName}`}>
+          <div className="text-xs font-bold text-zinc-500 dark:text-zinc-400 whitespace-nowrap">AI 평균 평점</div>
+          <div className={`mt-1 text-2xl font-black whitespace-nowrap ${scoreTone(stats.average).textClassName}`}>
             {stats.average > 0 ? `${stats.average}점` : "-"}
           </div>
         </Card>
         <Card className="p-4 text-center">
-          <div className="text-xs font-bold text-zinc-500 dark:text-zinc-400">내 체감 평균</div>
-          <div className="mt-1 text-2xl font-black text-[var(--theme)]">
+          <div className="text-xs font-bold text-zinc-500 dark:text-zinc-400 whitespace-nowrap">내 체감 평균</div>
+          <div className="mt-1 text-2xl font-black text-[var(--theme)] whitespace-nowrap">
             {stats.userAvg > 0 ? `${stats.userAvg}점` : "-"}
           </div>
         </Card>
         <Card className="p-4 text-center">
-          <div className="text-xs font-bold text-zinc-500 dark:text-zinc-400">최고 점수</div>
-          <div className={`mt-1 text-2xl font-black ${scoreTone(stats.highest).textClassName}`}>
+          <div className="text-xs font-bold text-zinc-500 dark:text-zinc-400 whitespace-nowrap">최고 점수</div>
+          <div className={`mt-1 text-2xl font-black whitespace-nowrap ${scoreTone(stats.highest).textClassName}`}>
             {stats.highest > 0 ? `${stats.highest}점` : "-"}
           </div>
         </Card>
         <Card className="p-4 text-center">
-          <div className="text-xs font-bold text-zinc-500 dark:text-zinc-400">최저 점수</div>
-          <div className={`mt-1 text-2xl font-black ${scoreTone(stats.lowest).textClassName}`}>
+          <div className="text-xs font-bold text-zinc-500 dark:text-zinc-400 whitespace-nowrap">최저 점수</div>
+          <div className={`mt-1 text-2xl font-black whitespace-nowrap ${scoreTone(stats.lowest).textClassName}`}>
             {stats.lowest > 0 ? `${stats.lowest}점` : "-"}
           </div>
         </Card>
@@ -181,11 +181,11 @@ export function StatsPanel() {
 
       {/* 🏆 주간/월간 급식 어워즈 (명예의 전당) */}
       <Card className="space-y-4">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-amber-500" /> 급식 어워즈 (명예의 전당)
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <CardTitle className="flex items-center gap-2 whitespace-nowrap">
+            <Trophy className="h-5 w-5 text-amber-500 shrink-0" /> 급식 어워즈 (명예의 전당)
           </CardTitle>
-          <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-2xs font-black text-amber-700 dark:text-amber-300 ring-1 ring-amber-400/30">
+          <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-2xs font-black text-amber-700 dark:text-amber-300 ring-1 ring-amber-400/30 whitespace-nowrap shrink-0">
             Hall of Fame
           </span>
         </div>
@@ -198,19 +198,19 @@ export function StatsPanel() {
                 className="relative flex flex-col justify-between overflow-hidden rounded-3xl bg-zinc-50/80 p-4 ring-1 ring-zinc-200/60 dark:bg-white/5 dark:ring-white/10 space-y-3"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl">{award.icon}</span>
-                    <div>
-                      <h4 className="text-sm font-black text-zinc-900 dark:text-white">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-2xl shrink-0">{award.icon}</span>
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-black text-zinc-900 dark:text-white truncate">
                         {award.title}
                       </h4>
-                      <p className="text-2xs text-zinc-500 dark:text-zinc-400 font-medium">
+                      <p className="text-2xs text-zinc-500 dark:text-zinc-400 font-medium truncate">
                         {formatShortDate(award.date)} • {award.subtitle}
                       </p>
                     </div>
                   </div>
                   <span
-                    className={`shrink-0 rounded-full px-2.5 py-0.5 text-2xs font-black ring-1 ${award.badgeClass}`}
+                    className={`shrink-0 rounded-full px-2.5 py-0.5 text-2xs font-black ring-1 whitespace-nowrap ${award.badgeClass}`}
                   >
                     {award.badge}
                   </span>
@@ -220,26 +220,26 @@ export function StatsPanel() {
                   {award.meal.menu.slice(0, 5).map((item) => (
                     <span
                       key={item}
-                      className="rounded-full bg-white px-2 py-0.5 text-2xs font-bold text-zinc-700 shadow-2xs dark:bg-zinc-800 dark:text-zinc-200"
+                      className="rounded-full bg-white px-2 py-0.5 text-2xs font-bold text-zinc-700 shadow-2xs dark:bg-zinc-800 dark:text-zinc-200 whitespace-nowrap shrink-0"
                     >
                       {item}
                     </span>
                   ))}
                   {award.meal.menu.length > 5 && (
-                    <span className="text-2xs font-bold text-zinc-400 self-center">
+                    <span className="text-2xs font-bold text-zinc-400 self-center whitespace-nowrap shrink-0">
                       +{award.meal.menu.length - 5}
                     </span>
                   )}
                 </div>
 
-                <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300 leading-relaxed bg-white/60 dark:bg-black/20 rounded-xl p-2">
+                <p className="text-xs font-medium text-zinc-600 dark:text-zinc-300 leading-relaxed bg-white/60 dark:bg-black/20 rounded-xl p-2.5 break-keep">
                   {award.reason}
                 </p>
               </div>
             ))}
           </div>
         ) : (
-          <div className="grid h-28 place-items-center rounded-2xl bg-zinc-50/60 text-xs font-semibold text-zinc-500 dark:bg-white/5">
+          <div className="grid h-28 place-items-center rounded-2xl bg-zinc-50/60 text-xs font-semibold text-zinc-500 dark:bg-white/5 break-keep text-center px-4">
             급식 데이터가 쌓이면 이달의 레전드 및 챔피언 급식이 선정됩니다.
           </div>
         )}
@@ -247,21 +247,21 @@ export function StatsPanel() {
 
       {/* 🤖 AI vs 👤 내 입맛 싱크로율 & 취향 분석 */}
       <Card className="space-y-4">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-indigo-500" /> AI vs 내 입맛 싱크로율
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <CardTitle className="flex items-center gap-2 whitespace-nowrap">
+            <Sparkles className="h-5 w-5 text-indigo-500 shrink-0" /> AI vs 내 입맛 싱크로율
           </CardTitle>
-          <span className="rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-2xs font-black text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-400/30">
+          <span className="rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-2xs font-black text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-400/30 whitespace-nowrap shrink-0">
             {tasteInsights.comparedCount}회 비교
           </span>
         </div>
 
         <div className="space-y-3">
           <div className="flex items-end justify-between">
-            <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
+            <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
               입맛 일치율 (Taste Match)
             </span>
-            <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400">
+            <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400 whitespace-nowrap">
               {tasteInsights.comparedCount > 0 ? `${tasteInsights.matchPercentage}%` : "-"}
             </span>
           </div>
@@ -275,7 +275,7 @@ export function StatsPanel() {
             />
           </div>
 
-          <p className="rounded-2xl bg-indigo-50/60 p-3.5 text-xs font-semibold text-indigo-950 dark:bg-indigo-950/30 dark:text-indigo-200 leading-relaxed">
+          <p className="rounded-2xl bg-indigo-50/60 p-3.5 text-xs font-semibold text-indigo-950 dark:bg-indigo-950/30 dark:text-indigo-200 leading-relaxed break-keep">
             {tasteInsights.insightComment}
           </p>
         </div>
@@ -283,8 +283,8 @@ export function StatsPanel() {
 
       {/* 📊 식단 인텔리전스 (카테고리별 출현 빈도) */}
       <Card className="space-y-4">
-        <CardTitle className="flex items-center gap-2">
-          <Utensils className="h-5 w-5 text-[var(--theme)]" /> 식단 구성 인텔리전스
+        <CardTitle className="flex items-center gap-2 whitespace-nowrap">
+          <Utensils className="h-5 w-5 text-[var(--theme)] shrink-0" /> 식단 구성 인텔리전스
         </CardTitle>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -294,14 +294,14 @@ export function StatsPanel() {
               className="rounded-2xl bg-zinc-50/80 p-3.5 dark:bg-white/5 ring-1 ring-zinc-200/50 dark:ring-white/5 space-y-2"
             >
               <div className="flex items-center justify-between">
-                <span className="text-xl">{cat.icon}</span>
-                <span className="text-xs font-black text-zinc-500 dark:text-zinc-400">
+                <span className="text-xl shrink-0">{cat.icon}</span>
+                <span className="text-xs font-black text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
                   {cat.count}일 출현
                 </span>
               </div>
               <div>
-                <div className="text-xs font-bold text-zinc-600 dark:text-zinc-300">{cat.name}</div>
-                <div className="mt-0.5 text-lg font-black">{cat.percentage}%</div>
+                <div className="text-xs font-bold text-zinc-600 dark:text-zinc-300 whitespace-nowrap">{cat.name}</div>
+                <div className="mt-0.5 text-lg font-black whitespace-nowrap">{cat.percentage}%</div>
               </div>
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-white/10">
                 <div

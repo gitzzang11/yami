@@ -404,6 +404,16 @@ export async function getLatestReview(
   date?: string,
   kind?: MealKind,
 ): Promise<AiReview | undefined> {
+  const all = await getAllReviewsForMeal(mealId, schoolCode, date, kind);
+  return all.length > 0 ? all[0] : undefined;
+}
+
+export async function getAllReviewsForMeal(
+  mealId: string,
+  schoolCode?: string,
+  date?: string,
+  kind?: MealKind,
+): Promise<AiReview[]> {
   if (schoolCode && date) {
     const reviews = await db.reviews
       .where("schoolCode")
@@ -411,13 +421,14 @@ export async function getLatestReview(
       .filter((r) => r.date === date && (!kind || !r.mealKind || r.mealKind === kind))
       .sortBy("createdAt");
     if (reviews.length > 0) {
-      return reviews[reviews.length - 1];
+      return reviews.reverse(); // newest first
     }
   }
 
   const byMealId = await db.reviews.where("mealId").equals(mealId).sortBy("createdAt");
-  if (byMealId.length > 0) {
-    return byMealId[byMealId.length - 1];
-  }
-  return undefined;
+  return byMealId.reverse();
+}
+
+export async function deleteReviewById(id: string): Promise<void> {
+  await db.reviews.delete(id);
 }

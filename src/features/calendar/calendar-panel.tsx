@@ -13,17 +13,18 @@ import {
   isSameDay,
   format,
 } from "date-fns";
-import { AlertTriangle, BookOpen, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Sparkles, Star, Utensils } from "lucide-react";
+import { AlertTriangle, BookOpen, Calendar as CalendarIcon, ChevronDown, ChevronLeft, ChevronRight, History, Sparkles, Star, Trash2, Utensils } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { EvaluatingAnimation } from "@/components/evaluating-animation";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { db } from "@/db/app-db";
 import { formatKoreanDate, parseNutritionInfo, scoreTone } from "@/lib/utils";
 import { USER_REACTION_CONFIG } from "@/services/feedback";
-import { CRITIC_PERSONAS, evaluateMealWithGemini } from "@/services/gemini";
+import { CRITIC_PERSONAS, deleteReviewById, evaluateMealWithGemini } from "@/services/gemini";
 import { getMealsByRange, getSchoolSchedulesByRange } from "@/services/neis";
 import { useAppStore } from "@/stores/app-store";
-import type { AiReview, Meal, MealKind, ScheduleEventType, SchoolScheduleEvent, UserMealFeedback } from "@/types";
+import type { AiReview, CriticPersonaId, Meal, MealKind, ScheduleEventType, SchoolScheduleEvent, UserMealFeedback } from "@/types";
 
 const MEAL_KIND_LABELS: Record<MealKind, string> = {
   breakfast: "조식",
@@ -78,6 +79,13 @@ export function CalendarPanel() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isLoading, setIsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [direction, setDirection] = useState<number>(0);
+  const [activeReviewId, setActiveReviewId] = useState<string | null>(null);
+  const [selectedPersona, setSelectedPersona] = useState<CriticPersonaId>(
+    settings.criticPersona ?? "student",
+  );
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [isNutritionOpen, setIsNutritionOpen] = useState(false);
 
   const userAllergies = settings.userAllergies ?? [];
@@ -138,8 +146,13 @@ export function CalendarPanel() {
   const mealMap = new Map<string, Meal>();
   meals.forEach((m) => mealMap.set(m.date, m));
 
-  const reviewMap = new Map<string, AiReview>();
-  reviews.forEach((r) => reviewMap.set(r.date, r));
+  const reviewsMap = new Map<string, AiReview[]>();
+  reviews.forEach((r) => {
+    const list = reviewsMap.get(r.date) || [];
+    list.push(r);
+    reviewsMap.set(r.date, list);
+  });
+  reviewsMap.forEach((list) => list.sort((a, b) => b.createdAt - a.createdAt));
 
   const scheduleMap = new Map<string, SchoolScheduleEvent[]>();
   schedules.forEach((s) => {
@@ -152,25 +165,29 @@ export function CalendarPanel() {
   feedbacks.forEach((f) => feedbackMap.set(f.date, f));
 
   const handlePrevMonth = () => {
+    setDirection(-1);
     setCurrentMonth((prev) => subMonths(prev, 1));
   };
 
   const handleNextMonth = () => {
+    setDirection(1);
     setCurrentMonth((prev) => addMonths(prev, 1));
   };
 
   // 선택한 날짜에 해당하는 정보
   const selectedDateStr = format(selectedDate, "yyyyMMdd");
   const selectedMeal = mealMap.get(selectedDateStr);
-  const selectedReview = reviewMap.get(selectedDateStr);
+  const selectedReviews = reviewsMap.get(selectedDateStr) ?? [];
+  const selectedReview = (activeReviewId ? selectedReviews.find((r) => r.id === activeReviewId) : undefined) ?? selectedReviews[0];
   const selectedSchedules = scheduleMap.get(selectedDateStr) ?? [];
   const selectedFeedback = feedbackMap.get(selectedDateStr);
   const selectedTone = scoreTone(selectedReview?.totalScore);
   const selectedNutrition = parseNutritionInfo(selectedMeal?.nutrition, selectedMeal?.calories);
 
   // 실시간 AI 평가 트리거
-  const handleEvaluate = () => {
+  const handleEvaluate = (personaToUse?: CriticPersonaId) => {
     if (!selectedMeal) return;
+    const targetPersona = personaToUse ?? selectedPersona ?? settings.criticPersona ?? "student";
     startTransition(async () => {
       try {
         await evaluateMealWithGemini(
@@ -179,10 +196,11 @@ export function CalendarPanel() {
           settings.geminiApiKey,
           settings.geminiModel,
           settings.selectedSchool?.kind,
-          settings.criticPersona ?? "student",
+          targetPersona,
         );
         // 캐시 데이터 새로 불러오기
         await loadMonthData(currentMonth, calendarKind);
+        setActiveReviewId(null);
       } catch (error) {
         alert(error instanceof Error ? error.message : "평가에 실패했습니다.");
       }
@@ -199,9 +217,21 @@ export function CalendarPanel() {
       >
         <div className="flex items-center gap-2">
           <CalendarIcon className="h-5 w-5 text-zinc-500" />
-          <h1 className="text-2xl font-black tracking-tight">
-            {format(currentMonth, "yyyy년 M월")}
-          </h1>
+          <div className="h-8 overflow-hidden relative flex items-center min-w-[140px]">
+            <AnimatePresence mode="wait" initial={false} custom={direction}>
+              <motion.h1
+                key={format(currentMonth, "yyyy-MM")}
+                custom={direction}
+                initial={{ opacity: 0, x: direction * 25 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -direction * 25 }}
+                transition={{ duration: 0.2 }}
+                className="text-2xl font-black tracking-tight"
+              >
+                {format(currentMonth, "yyyy년 M월")}
+              </motion.h1>
+            </AnimatePresence>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" size="icon" onClick={handlePrevMonth} aria-label="이전 달">
@@ -234,8 +264,8 @@ export function CalendarPanel() {
         })}
       </div>
 
-      {/* 캘린더 그리드 */}
-      <Card className="p-3">
+      {/* 캘린더 그리드 (스와이프 & 슬라이드 애니메이션) */}
+      <Card className="p-3 overflow-hidden relative">
         {/* 요일 헤더 */}
         <div className="grid grid-cols-7 text-center text-xs font-bold text-zinc-400 dark:text-zinc-500 mb-2">
           {["일", "월", "화", "수", "목", "금", "토"].map((w) => (
@@ -245,99 +275,153 @@ export function CalendarPanel() {
           ))}
         </div>
 
-        {/* 일자 셀 */}
-        <div className="grid grid-cols-7 gap-1">
-          {days.map((day) => {
-            const dateStr = format(day, "yyyyMMdd");
-            const hasMeal = mealMap.has(dateStr);
-            const mealForDay = mealMap.get(dateStr);
-            const review = reviewMap.get(dateStr);
-            const daySchedules = scheduleMap.get(dateStr) ?? [];
-            const isCurrentMonth = isSameMonth(day, currentMonth);
-            const isSelected = isSameDay(day, selectedDate);
-            const isToday = isSameDay(day, new Date());
-            const dayTone = scoreTone(review?.totalScore);
+        {/* 일자 셀 (스와이프 제스처 및 방향별 슬라이드 모션) */}
+        <div className="relative overflow-hidden min-h-[260px]">
+          <AnimatePresence mode="wait" initial={false} custom={direction}>
+            <motion.div
+              key={format(currentMonth, "yyyy-MM")}
+              custom={direction}
+              variants={{
+                enter: (dir: number) => ({
+                  x: dir > 0 ? 100 : dir < 0 ? -100 : 0,
+                  opacity: 0,
+                }),
+                center: {
+                  x: 0,
+                  opacity: 1,
+                  transition: {
+                    x: { type: "spring", stiffness: 350, damping: 30 },
+                    opacity: { duration: 0.2 },
+                  },
+                },
+                exit: (dir: number) => ({
+                  x: dir > 0 ? -100 : dir < 0 ? 100 : 0,
+                  opacity: 0,
+                  transition: {
+                    x: { type: "spring", stiffness: 350, damping: 30 },
+                    opacity: { duration: 0.15 },
+                  },
+                }),
+              }}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.25}
+              onDragEnd={(_e, { offset, velocity }) => {
+                const swipeThreshold = 40;
+                const velocityThreshold = 350;
+                if (offset.x > swipeThreshold || velocity.x > velocityThreshold) {
+                  handlePrevMonth();
+                } else if (offset.x < -swipeThreshold || velocity.x < -velocityThreshold) {
+                  handleNextMonth();
+                }
+              }}
+              className="grid grid-cols-7 gap-1 touch-pan-y cursor-grab active:cursor-grabbing select-none"
+            >
+              {days.map((day) => {
+                const dateStr = format(day, "yyyyMMdd");
+                const hasMeal = mealMap.has(dateStr);
+                const mealForDay = mealMap.get(dateStr);
+                const dayReviews = reviewsMap.get(dateStr) ?? [];
+                const review = dayReviews[0];
+                const daySchedules = scheduleMap.get(dateStr) ?? [];
+                const isCurrentMonth = isSameMonth(day, currentMonth);
+                const isSelected = isSameDay(day, selectedDate);
+                const isToday = isSameDay(day, new Date());
+                const dayTone = scoreTone(review?.totalScore);
 
-            const hasFavorite =
-              favoriteKeywords.length > 0 &&
-              mealForDay?.menu.some((m) =>
-                favoriteKeywords.some((k) => m.toLowerCase().includes(k.toLowerCase())),
-              );
+                const hasFavorite =
+                  favoriteKeywords.length > 0 &&
+                  mealForDay?.menu.some((m) =>
+                    favoriteKeywords.some((k) => m.toLowerCase().includes(k.toLowerCase())),
+                  );
 
-            const primarySchedule = daySchedules[0];
-            const primaryScheduleConfig = primarySchedule ? EVENT_TYPE_CONFIG[primarySchedule.eventType] : null;
+                const primarySchedule = daySchedules[0];
+                const primaryScheduleConfig = primarySchedule ? EVENT_TYPE_CONFIG[primarySchedule.eventType] : null;
 
-            return (
-              <button
-                key={day.toString()}
-                onClick={() => setSelectedDate(day)}
-                className={`relative flex flex-col items-center justify-between aspect-square p-1 rounded-2xl transition-all ${
-                  isCurrentMonth
-                    ? "text-zinc-950 dark:text-white"
-                    : "text-zinc-300 dark:text-zinc-700"
-                } ${
-                  isSelected
-                    ? "ring-2 ring-[var(--theme)] bg-white/40 dark:bg-white/5"
-                    : "hover:bg-zinc-100 dark:hover:bg-white/5"
-                }`}
-              >
-                {/* 학사 일정 아이콘 표시 (셀 좌측 상단) */}
-                {primarySchedule && (
-                  <span
-                    className="absolute top-0.5 left-1 text-[9px] leading-none"
-                    title={`${primarySchedule.eventName}${primarySchedule.gradeTarget ? ` (${primarySchedule.gradeTarget})` : ""}`}
+                return (
+                  <button
+                    key={day.toString()}
+                    type="button"
+                    onClick={() => setSelectedDate(day)}
+                    className={`relative flex flex-col items-center justify-between aspect-square p-1 rounded-2xl transition-all active:scale-90 ${
+                      isCurrentMonth
+                        ? "text-zinc-950 dark:text-white"
+                        : "text-zinc-300 dark:text-zinc-700"
+                    } ${
+                      isSelected
+                        ? "ring-2 ring-[var(--theme)] bg-white/40 dark:bg-white/5"
+                        : "hover:bg-zinc-100 dark:hover:bg-white/5"
+                    }`}
                   >
-                    {primaryScheduleConfig?.icon}
-                  </span>
-                )}
+                    {/* 학사 일정 아이콘 표시 (셀 좌측 상단) */}
+                    {primarySchedule && (
+                      <span
+                        className="absolute top-0.5 left-1 text-[9px] leading-none"
+                        title={`${primarySchedule.eventName}${primarySchedule.gradeTarget ? ` (${primarySchedule.gradeTarget})` : ""}`}
+                      >
+                        {primaryScheduleConfig?.icon}
+                      </span>
+                    )}
 
-                {/* 최애 메뉴 표시 (셀 우측 상단) */}
-                {hasFavorite && (
-                  <span
-                    className="absolute top-0.5 right-1 text-[9px] leading-none"
-                    title="최애 메뉴 출몰!"
-                  >
-                    ⭐
-                  </span>
-                )}
+                    {/* 최애 메뉴 표시 (셀 우측 상단) */}
+                    {hasFavorite && (
+                      <span
+                        className="absolute top-0.5 right-1 text-[9px] leading-none"
+                        title="최애 메뉴 출몰!"
+                      >
+                        ⭐
+                      </span>
+                    )}
 
-                {/* 날짜 표시 */}
-                <span
-                  className={`text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full ${
-                    isToday ? "bg-[var(--theme)] text-white" : ""
-                  }`}
-                >
-                  {format(day, "d")}
-                </span>
-
-                {/* 데이터 상태 표시 */}
-                <div className="w-full flex justify-center mb-0.5">
-                  {isLoading ? (
-                    <div className="w-1.5 h-1.5 rounded-full bg-zinc-300 animate-pulse" />
-                  ) : review ? (
-                    // AI 평가가 있는 경우 점수에 부합하는 이모지 표시
-                    <span className="text-sm leading-none" title={`${review.totalScore}점`}>
-                      {dayTone.emoji}
+                    {/* 날짜 표시 */}
+                    <span
+                      className={`text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full ${
+                        isToday ? "bg-[var(--theme)] text-white" : ""
+                      }`}
+                    >
+                      {format(day, "d")}
                     </span>
-                  ) : hasMeal ? (
-                    // 급식은 있고 AI 평가는 아직 안 된 경우 밥그릇 아이콘 표시
-                    <span className="text-xs text-zinc-400 dark:text-zinc-500" title="평가 대기">
-                      🍱
-                    </span>
-                  ) : primarySchedule ? (
-                    // 급식이 없지만 학사 일정이 있는 날
-                    <div
-                      className={`w-1.5 h-1.5 rounded-full ${primaryScheduleConfig?.dotClass || "bg-zinc-400"}`}
-                      title={primarySchedule.eventName}
-                    />
-                  ) : (
-                    // 급식/일정 모두 없는 날
-                    <div className="h-3" />
-                  )}
-                </div>
-              </button>
-            );
-          })}
+
+                    {/* 데이터 상태 표시 */}
+                    <div className="w-full flex justify-center mb-0.5">
+                      {isLoading ? (
+                        <div className="w-1.5 h-1.5 rounded-full bg-zinc-300 animate-pulse" />
+                      ) : review ? (
+                        // AI 평가가 있는 경우 점수에 부합하는 이모지 표시
+                        <span className="text-sm leading-none" title={`${review.totalScore}점`}>
+                          {dayTone.emoji}
+                        </span>
+                      ) : hasMeal ? (
+                        // 급식은 있고 AI 평가는 아직 안 된 경우 밥그릇 아이콘 표시
+                        <span className="text-xs text-zinc-400 dark:text-zinc-500" title="평가 대기">
+                          🍱
+                        </span>
+                      ) : primarySchedule ? (
+                        // 급식이 없지만 학사 일정이 있는 날
+                        <div
+                          className={`w-1.5 h-1.5 rounded-full ${primaryScheduleConfig?.dotClass || "bg-zinc-400"}`}
+                          title={primarySchedule.eventName}
+                        />
+                      ) : (
+                        // 급식/일정 모두 없는 날
+                        <div className="h-3" />
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* 하단 스와이프 안내 힌트 */}
+        <div className="flex items-center justify-center gap-1.5 pt-2 text-[10px] font-bold text-zinc-400 dark:text-zinc-500 select-none">
+          <ChevronLeft className="h-3 w-3 animate-pulse" />
+          <span>좌우로 스와이프하여 이전/다음 달 이동</span>
+          <ChevronRight className="h-3 w-3 animate-pulse" />
         </div>
       </Card>
 
@@ -350,10 +434,22 @@ export function CalendarPanel() {
           exit={{ opacity: 0, y: -15 }}
           className="space-y-4"
         >
-          <div className="flex items-center justify-between border-b pb-2 border-zinc-200 dark:border-zinc-800">
-            <h2 className="text-lg font-black">
-              {formatKoreanDate(selectedDate)} ({MEAL_KIND_LABELS[calendarKind]})
-            </h2>
+          <div className="flex items-center justify-between border-b pb-2 border-zinc-200 dark:border-zinc-800 gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-lg font-black">
+                {formatKoreanDate(selectedDate)} ({MEAL_KIND_LABELS[calendarKind]})
+              </h2>
+              {selectedSchedules.length > 0 && (
+                <span
+                  onClick={() => setIsScheduleOpen(true)}
+                  className="inline-flex items-center gap-1 rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-2xs font-bold text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-400/30 cursor-pointer hover:bg-indigo-500/20 transition"
+                  title="하단 학사 일정 열기"
+                >
+                  <BookOpen className="h-3 w-3" />
+                  {selectedSchedules.map((s) => s.eventName).join(", ")}
+                </span>
+              )}
+            </div>
             {selectedMeal && (
               <button
                 onClick={() => setIsNutritionOpen(true)}
@@ -365,58 +461,6 @@ export function CalendarPanel() {
               </button>
             )}
           </div>
-
-          {/* 오늘의 학사 일정 카드 (일정이 있을 경우) */}
-          {selectedSchedules.length > 0 && (
-            <Card className="space-y-3 bg-gradient-to-br from-indigo-50/70 to-purple-50/70 border-indigo-200/60 dark:from-indigo-950/20 dark:to-purple-950/20 dark:border-indigo-800/40">
-              <CardTitle className="flex items-center gap-2 text-sm font-black text-indigo-950 dark:text-indigo-200">
-                <BookOpen className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                오늘의 학사 일정 ({selectedSchedules.length}건)
-              </CardTitle>
-              <div className="space-y-2">
-                {selectedSchedules.map((schedule) => {
-                  const config = EVENT_TYPE_CONFIG[schedule.eventType];
-                  return (
-                    <div
-                      key={schedule.id}
-                      className="flex items-start justify-between gap-2 rounded-2xl bg-white/90 p-3 shadow-xs ring-1 ring-black/5 dark:bg-white/5 dark:ring-white/10"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-black ring-1 ${config.badgeClass}`}
-                          >
-                            <span>{config.icon}</span>
-                            <span>{config.label}</span>
-                          </span>
-                          <span className="text-sm font-black text-zinc-900 dark:text-white">
-                            {schedule.eventName}
-                          </span>
-                        </div>
-                        {schedule.eventContent && (
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                            {schedule.eventContent}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex flex-col items-end gap-1 shrink-0">
-                        {schedule.gradeTarget && (
-                          <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[10px] font-bold text-zinc-600 dark:bg-white/10 dark:text-zinc-300">
-                            {schedule.gradeTarget}
-                          </span>
-                        )}
-                        {schedule.dayType && (
-                          <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400">
-                            {schedule.dayType}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-          )}
 
           {selectedMeal ? (
             <div className="space-y-4">
@@ -438,7 +482,7 @@ export function CalendarPanel() {
                         return (
                           <span
                             key={item.raw || item.name}
-                            className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold shadow-sm ${
+                            className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold shadow-sm whitespace-nowrap shrink-0 ${
                               hasAllergy
                                 ? "bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-200 ring-1 ring-rose-300 dark:ring-rose-800"
                                 : isFavorite
@@ -467,7 +511,7 @@ export function CalendarPanel() {
                         return (
                           <span
                             key={item}
-                            className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold shadow-sm ${
+                            className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold shadow-sm whitespace-nowrap shrink-0 ${
                               isFavorite
                                 ? "bg-amber-50/90 text-amber-900 ring-1 ring-amber-300 dark:bg-amber-950/40 dark:text-amber-100 dark:ring-amber-700"
                                 : "bg-white/70 text-zinc-900 dark:bg-white/10 dark:text-white"
@@ -483,6 +527,46 @@ export function CalendarPanel() {
 
               {/* AI 비평 평론 카드 */}
               <Card className="space-y-4">
+                {/* 페르소나 평가 히스토리 탭 칩 목록 (여러 평가가 존재할 때 빠른 전환) */}
+                {selectedReviews.length > 0 && (
+                  <div className="space-y-1.5 pb-1 border-b border-zinc-200/50 dark:border-zinc-800/50">
+                    <div className="flex items-center justify-between text-2xs font-black text-zinc-400 dark:text-zinc-500">
+                      <span>페르소나별 평가 기록 ({selectedReviews.length}건)</span>
+                      <span className="text-[10px] text-zinc-400">칩을 눌러 전환</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                      {selectedReviews.map((r, idx) => {
+                        const p = CRITIC_PERSONAS[r.persona || "student"];
+                        const isCurrent = selectedReview?.id === r.id;
+                        const rTone = scoreTone(r.totalScore);
+                        return (
+                          <button
+                            key={r.id}
+                            type="button"
+                            onClick={() => setActiveReviewId(r.id)}
+                            className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-black transition-all shrink-0 cursor-pointer ${
+                              isCurrent
+                                ? "bg-zinc-950 text-white shadow-sm dark:bg-white dark:text-zinc-950 ring-2 ring-[var(--theme)] scale-105"
+                                : "bg-zinc-100/80 text-zinc-600 hover:bg-zinc-200 dark:bg-white/10 dark:text-zinc-300"
+                            }`}
+                          >
+                            <span>{p?.icon || "🎓"}</span>
+                            <span>{r.personaName || p?.name}</span>
+                            <span className={`text-[11px] font-bold ${isCurrent ? "" : rTone.textClassName}`}>
+                              {r.totalScore}점
+                            </span>
+                            {idx === 0 && (
+                              <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-300 font-bold">
+                                최신
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-1.5 flex-wrap mb-1">
@@ -552,13 +636,132 @@ export function CalendarPanel() {
                   </div>
                 )}
 
+                {/* 📜 전체 평가 히스토리 타임라인 아코디언 */}
+                {selectedReviews.length > 1 && (
+                  <div className="pt-2 border-t border-zinc-200/60 dark:border-zinc-800/60">
+                    <button
+                      type="button"
+                      onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+                      className="flex items-center justify-between w-full py-1 text-xs font-black text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition cursor-pointer"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <History className="h-4 w-4 text-[var(--theme)]" />
+                        전체 평가 히스토리 ({selectedReviews.length}건)
+                      </span>
+                      <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isHistoryOpen ? "rotate-180" : ""}`} />
+                    </button>
+
+                    {isHistoryOpen && (
+                      <div className="mt-3 space-y-2">
+                        {selectedReviews.map((r, idx) => {
+                          const p = CRITIC_PERSONAS[r.persona || "student"];
+                          const rTone = scoreTone(r.totalScore);
+                          const isSelected = selectedReview?.id === r.id;
+                          const timeStr = new Date(r.createdAt).toLocaleTimeString("ko-KR", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          });
+                          return (
+                            <div
+                              key={r.id}
+                              className={`flex items-center justify-between gap-3 rounded-2xl p-2.5 transition ${
+                                isSelected
+                                  ? "bg-zinc-100 dark:bg-white/15 ring-1.5 ring-[var(--theme)] shadow-xs"
+                                  : "bg-zinc-50 dark:bg-white/5 hover:bg-zinc-100/60 dark:hover:bg-white/10"
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                className="min-w-0 flex-1 text-left cursor-pointer"
+                                onClick={() => setActiveReviewId(r.id)}
+                              >
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-sm">{p?.icon || "🎓"}</span>
+                                  <span className="text-xs font-black text-zinc-900 dark:text-white">
+                                    {r.personaName || p?.name}
+                                  </span>
+                                  <span className="text-2xs text-zinc-400 font-medium">
+                                    {timeStr}
+                                  </span>
+                                  {idx === 0 && (
+                                    <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-300 font-bold">
+                                      최신
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="mt-0.5 text-xs font-bold text-zinc-700 dark:text-zinc-200 line-clamp-1">
+                                  &ldquo;{r.oneLine}&rdquo;
+                                </p>
+                              </button>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className={`text-sm font-black ${rTone.textClassName}`}>
+                                  {r.totalScore}점
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    await deleteReviewById(r.id);
+                                    await loadMonthData(currentMonth, calendarKind);
+                                    if (activeReviewId === r.id) {
+                                      setActiveReviewId(null);
+                                    }
+                                  }}
+                                  className="p-1 text-zinc-400 hover:text-rose-500 transition cursor-pointer"
+                                  title="이 평가 기록 삭제"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 페르소나 선택 칩 바 (평가할 페르소나 선택) */}
+                <div className="pt-2 border-t border-zinc-200/50 dark:border-zinc-800/50 space-y-2">
+                  <div className="flex items-center justify-between text-2xs font-black text-zinc-500 dark:text-zinc-400">
+                    <span>비평가 페르소나 선택:</span>
+                    <span className="text-[var(--theme)] font-bold">{CRITIC_PERSONAS[selectedPersona]?.name}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
+                    {(Object.keys(CRITIC_PERSONAS) as CriticPersonaId[]).map((pId) => {
+                      const p = CRITIC_PERSONAS[pId];
+                      const isSelected = selectedPersona === pId;
+                      return (
+                        <button
+                          key={pId}
+                          type="button"
+                          onClick={() => setSelectedPersona(pId)}
+                          className={`flex items-center justify-center gap-1 rounded-xl py-1.5 px-1.5 text-2xs font-black transition cursor-pointer whitespace-nowrap overflow-hidden ${
+                            isSelected
+                              ? "bg-zinc-950 text-white shadow-sm dark:bg-white dark:text-zinc-950 ring-1 ring-[var(--theme)]"
+                              : "bg-zinc-100/80 text-zinc-600 hover:bg-zinc-200 dark:bg-white/5 dark:text-zinc-400 dark:hover:bg-white/10"
+                          }`}
+                        >
+                          <span className="shrink-0">{p.icon}</span>
+                          <span className="truncate">{p.name.replace(" 셰프", "").replace(" 선생님", "").replace(" 분석관", "")}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {isPending && (
+                  <EvaluatingAnimation persona={selectedPersona} compact />
+                )}
+
                 <Button
-                  onClick={handleEvaluate}
+                  onClick={() => handleEvaluate(selectedPersona)}
                   disabled={isPending}
-                  className="w-full"
+                  className="w-full whitespace-nowrap"
                 >
-                  <Sparkles className="h-4 w-4" />
-                  {isPending ? "평가 중..." : "AI 평가하기"}
+                  <Sparkles className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{isPending ? "평가 진행 중..." : `${CRITIC_PERSONAS[selectedPersona]?.name}로 평가하기`}</span>
                 </Button>
               </Card>
             </div>
@@ -570,49 +773,142 @@ export function CalendarPanel() {
         </motion.div>
       </AnimatePresence>
 
-      {/* 이달의 주요 학사일정 타임라인 요약 카드 */}
+      {/* 📅 학사 일정 카드 (화면 최하단 배치 & 열고 닫기 토글) */}
       {schedules.length > 0 && (
-        <Card className="space-y-3">
-          <CardTitle className="flex items-center gap-2 text-sm font-black">
-            <CalendarIcon className="h-4 w-4 text-[var(--theme)]" />
-            {format(currentMonth, "M월")} 전체 학사일정 ({schedules.length}건)
-          </CardTitle>
-          <div className="divide-y divide-zinc-100 dark:divide-zinc-800/60 max-h-56 overflow-y-auto">
-            {schedules.map((schedule) => {
-              const config = EVENT_TYPE_CONFIG[schedule.eventType];
-              const dayNum = Number(schedule.date.slice(6, 8));
-              return (
-                <button
-                  key={schedule.id}
-                  type="button"
-                  onClick={() => {
-                    const y = Number(schedule.date.slice(0, 4));
-                    const m = Number(schedule.date.slice(4, 6)) - 1;
-                    const d = Number(schedule.date.slice(6, 8));
-                    setSelectedDate(new Date(y, m, d));
-                  }}
-                  className="w-full flex items-center justify-between py-2 px-1 hover:bg-zinc-50 dark:hover:bg-white/5 rounded-xl transition cursor-pointer text-left"
-                >
-                  <div className="flex items-center gap-2.5 flex-wrap">
-                    <span className="w-9 text-xs font-black text-zinc-400 dark:text-zinc-500">
-                      {dayNum}일
-                    </span>
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${config.badgeClass}`}
-                    >
-                      {config.icon} {config.label}
-                    </span>
-                    <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                      {schedule.eventName}
-                    </span>
+        <Card className="overflow-hidden border-indigo-200/50 dark:border-indigo-950/40 bg-gradient-to-br from-white via-indigo-50/20 to-purple-50/10 dark:from-zinc-900 dark:via-indigo-950/10 dark:to-zinc-900">
+          <button
+            type="button"
+            onClick={() => setIsScheduleOpen(!isScheduleOpen)}
+            className="flex w-full items-center justify-between p-4 text-left transition cursor-pointer hover:bg-black/5 dark:hover:bg-white/5"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="grid h-8 w-8 place-items-center rounded-xl bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400">
+                <BookOpen className="h-4 w-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-black text-zinc-900 dark:text-white">
+                    {format(currentMonth, "M월")} 학사 일정
+                  </h3>
+                  <span className="rounded-full bg-indigo-500/10 px-2 py-0.5 text-2xs font-bold text-indigo-700 dark:text-indigo-300">
+                    총 {schedules.length}건
+                  </span>
+                </div>
+                <p className="text-2xs text-zinc-500 dark:text-zinc-400">
+                  {isScheduleOpen
+                    ? "클릭하여 학사 일정을 닫습니다"
+                    : "시험, 방학, 공휴일 및 행사 일정 확인하기"}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                {isScheduleOpen ? "닫기" : "열기"}
+              </span>
+              <ChevronDown
+                className={`h-4 w-4 text-zinc-400 transition-transform duration-200 ${
+                  isScheduleOpen ? "rotate-180" : ""
+                }`}
+              />
+            </div>
+          </button>
+
+          {/* 열렸을 때 표시되는 학사 일정 상세 & 타임라인 */}
+          <AnimatePresence>
+            {isScheduleOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.25 }}
+                className="border-t border-indigo-100/80 p-4 space-y-4 dark:border-white/5"
+              >
+                {/* 선택한 날짜에 학사 일정이 있는 경우 강조 표시 */}
+                {selectedSchedules.length > 0 && (
+                  <div className="rounded-2xl bg-indigo-500/10 p-3.5 space-y-2 border border-indigo-200/50 dark:border-indigo-800/30">
+                    <div className="flex items-center gap-1.5 text-xs font-black text-indigo-900 dark:text-indigo-200">
+                      <span>📌</span>
+                      <span>선택한 날짜 ({formatKoreanDate(selectedDate)}) 학사 일정</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {selectedSchedules.map((schedule) => {
+                        const config = EVENT_TYPE_CONFIG[schedule.eventType];
+                        return (
+                          <div
+                            key={schedule.id}
+                            className="flex items-center justify-between gap-2 rounded-xl bg-white/80 p-2.5 shadow-2xs dark:bg-black/30"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-black ${config.badgeClass}`}>
+                                {config.icon} {config.label}
+                              </span>
+                              <span className="text-xs font-black text-zinc-900 dark:text-white">
+                                {schedule.eventName}
+                              </span>
+                            </div>
+                            {schedule.gradeTarget && (
+                              <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 text-3xs font-bold text-zinc-600 dark:bg-white/10 dark:text-zinc-300">
+                                {schedule.gradeTarget}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="text-[10px] font-medium text-zinc-400 shrink-0 ml-2">
-                    {schedule.gradeTarget || ""}
+                )}
+
+                {/* 이달의 전체 학사 일정 목록 */}
+                <div className="space-y-1">
+                  <div className="text-2xs font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">
+                    이달의 전체 일정 목록
                   </div>
-                </button>
-              );
-            })}
-          </div>
+                  <div className="divide-y divide-zinc-100 dark:divide-zinc-800/60 max-h-60 overflow-y-auto">
+                    {schedules.map((schedule) => {
+                      const config = EVENT_TYPE_CONFIG[schedule.eventType];
+                      const dayNum = Number(schedule.date.slice(6, 8));
+                      const isSelectedDay = schedule.date === selectedDateStr;
+                      return (
+                        <button
+                          key={schedule.id}
+                          type="button"
+                          onClick={() => {
+                            const y = Number(schedule.date.slice(0, 4));
+                            const m = Number(schedule.date.slice(4, 6)) - 1;
+                            const d = Number(schedule.date.slice(6, 8));
+                            setSelectedDate(new Date(y, m, d));
+                          }}
+                          className={`w-full flex items-center justify-between py-2 px-2 rounded-xl transition cursor-pointer text-left ${
+                            isSelectedDay
+                              ? "bg-indigo-500/10 dark:bg-indigo-500/20 font-black"
+                              : "hover:bg-zinc-50 dark:hover:bg-white/5"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 flex-wrap">
+                            <span className="w-8 text-xs font-black text-zinc-400 dark:text-zinc-500">
+                              {dayNum}일
+                            </span>
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-black ${config.badgeClass}`}
+                            >
+                              {config.icon} {config.label}
+                            </span>
+                            <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                              {schedule.eventName}
+                            </span>
+                          </div>
+                          <div className="text-2xs font-medium text-zinc-400 shrink-0 ml-2">
+                            {schedule.gradeTarget || ""}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </Card>
       )}
 

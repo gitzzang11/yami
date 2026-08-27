@@ -253,21 +253,21 @@ export function SettingsPanel({ today, review }: Props) {
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-2xl">{persona.icon}</span>
-                    <span className="font-black text-sm text-zinc-900 dark:text-white">
+                    <span className="text-2xl shrink-0">{persona.icon}</span>
+                    <span className="font-black text-sm text-zinc-900 dark:text-white whitespace-nowrap">
                       {persona.name}
                     </span>
                   </div>
                   {isSelected && (
-                    <span className="flex items-center gap-1 rounded-full bg-[var(--theme)] px-2 py-0.5 text-[10px] font-black text-white">
+                    <span className="flex items-center gap-1 rounded-full bg-[var(--theme)] px-2 py-0.5 text-[10px] font-black text-white whitespace-nowrap shrink-0">
                       <Check className="h-3 w-3 stroke-[3]" /> 선택됨
                     </span>
                   )}
                 </div>
-                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 leading-snug">
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 leading-snug break-keep">
                   {persona.shortDesc}
                 </p>
-                <div className="mt-2 rounded-xl bg-zinc-100/80 px-2.5 py-1.5 text-[11px] font-medium text-zinc-600 dark:bg-black/30 dark:text-zinc-300 italic">
+                <div className="mt-2 rounded-xl bg-zinc-100/80 px-2.5 py-1.5 text-[11px] font-medium text-zinc-600 dark:bg-black/30 dark:text-zinc-300 italic break-keep">
                   &ldquo;{persona.sampleQuote}&rdquo;
                 </div>
               </button>
@@ -279,11 +279,11 @@ export function SettingsPanel({ today, review }: Props) {
       {/* 알레르기 안심 설정 */}
       <Card className="space-y-4">
         <div>
-          <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-amber-500" />
+          <CardTitle className="flex items-center gap-2 whitespace-nowrap">
+            <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
             알레르기 안심 알림
           </CardTitle>
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 break-keep">
             주의해야 할 알레르기를 선택하세요. 급식 메뉴에 포함 시 경고 표시가 나타납니다.
           </p>
         </div>
@@ -297,7 +297,7 @@ export function SettingsPanel({ today, review }: Props) {
                 type="button"
                 onClick={() => toggleAllergy(num)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition cursor-pointer select-none active:scale-95",
+                  "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition cursor-pointer select-none active:scale-95 whitespace-nowrap shrink-0",
                   isChecked
                     ? "bg-[var(--theme)] text-white shadow-sm ring-1 ring-[var(--theme)]"
                     : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15",
@@ -310,7 +310,7 @@ export function SettingsPanel({ today, review }: Props) {
           })}
         </div>
         {userAllergies.length > 0 && (
-          <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+          <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
             ✓ 총 {userAllergies.length}개의 알레르기 항목을 감지 중입니다.
           </p>
         )}
@@ -319,20 +319,20 @@ export function SettingsPanel({ today, review }: Props) {
       {/* 최애 메뉴 (밥도둑) 키워드 알림 설정 */}
       <Card className="space-y-4">
         <div>
-          <CardTitle className="flex items-center gap-2">
-            <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
+          <CardTitle className="flex items-center gap-2 whitespace-nowrap">
+            <Star className="h-5 w-5 fill-amber-400 text-amber-400 shrink-0" />
             최애 메뉴 (밥도둑) 알림
           </CardTitle>
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 break-keep">
             좋아하는 메뉴를 등록하면 급식에 나오는 날 아침에 알림을 보내드립니다.
           </p>
         </div>
 
         {/* 알림 활성화 스위치 */}
-        <div className="flex items-center justify-between rounded-3xl bg-white/60 p-4 dark:bg-white/10">
+        <div className="flex items-center justify-between rounded-3xl bg-white/60 p-4 dark:bg-white/10 gap-3">
           <div>
-            <div className="font-bold text-sm">최애 메뉴 출몰 알림</div>
-            <div className="text-xs text-zinc-500 dark:text-zinc-400">식단에 등록된 키워드 등장 시 알림</div>
+            <div className="font-bold text-sm whitespace-nowrap">최애 메뉴 출몰 알림</div>
+            <div className="text-xs text-zinc-500 dark:text-zinc-400 break-keep">식단에 등록된 키워드 등장 시 알림</div>
           </div>
           <Switch
             checked={settings.keywordNotificationsEnabled ?? false}
@@ -362,7 +362,7 @@ export function SettingsPanel({ today, review }: Props) {
             placeholder="예: 마라탕, 뿌링클, 꿔바로우"
             className="h-10 text-sm"
           />
-          <Button size="sm" onClick={handleAddKeyword} className="shrink-0 h-10 px-4">
+          <Button size="sm" onClick={handleAddKeyword} className="shrink-0 h-10 px-4 whitespace-nowrap">
             <Plus className="h-4 w-4 mr-1" />
             추가
           </Button>
@@ -370,7 +370,7 @@ export function SettingsPanel({ today, review }: Props) {
 
         {/* 추천 인기 밥도둑 프리셋 태그 */}
         <div className="space-y-1.5">
-          <div className="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+          <div className="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider whitespace-nowrap">
             추천 인기 키워드
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -382,7 +382,7 @@ export function SettingsPanel({ today, review }: Props) {
                   type="button"
                   onClick={() => toggleFavoriteKeyword(preset)}
                   className={cn(
-                    "flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition cursor-pointer select-none active:scale-95",
+                    "flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition cursor-pointer select-none active:scale-95 whitespace-nowrap shrink-0",
                     isSelected
                       ? "bg-amber-500/20 text-amber-800 ring-1 ring-amber-400 dark:bg-amber-400/20 dark:text-amber-200 dark:ring-amber-500/50"
                       : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-white/5 dark:text-zinc-400 dark:hover:bg-white/10",
@@ -398,7 +398,7 @@ export function SettingsPanel({ today, review }: Props) {
 
         {/* 현재 등록된 키워드 목록 */}
         <div className="space-y-1.5">
-          <div className="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+          <div className="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider whitespace-nowrap">
             등록된 키워드 ({favoriteKeywords.length}개)
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -406,7 +406,7 @@ export function SettingsPanel({ today, review }: Props) {
               favoriteKeywords.map((kw) => (
                 <span
                   key={kw}
-                  className="flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500/15 to-orange-500/15 px-3 py-1 text-xs font-black text-amber-900 ring-1 ring-amber-300 dark:text-amber-200 dark:ring-amber-500/40"
+                  className="flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500/15 to-orange-500/15 px-3 py-1 text-xs font-black text-amber-900 ring-1 ring-amber-300 dark:text-amber-200 dark:ring-amber-500/40 whitespace-nowrap shrink-0"
                 >
                   <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
                   <span>{kw}</span>
@@ -430,16 +430,16 @@ export function SettingsPanel({ today, review }: Props) {
         {upcomingFavorites.length > 0 && (
           <div className="rounded-2xl border border-amber-200/60 bg-amber-50/50 p-3.5 dark:border-amber-900/30 dark:bg-amber-950/20 space-y-2">
             <div className="flex items-center gap-1.5 text-xs font-black text-amber-900 dark:text-amber-200">
-              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-              <span>다가오는 최애 급식 포착! ({upcomingFavorites.length}일)</span>
+              <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+              <span className="whitespace-nowrap">다가오는 최애 급식 포착! ({upcomingFavorites.length}일)</span>
             </div>
             <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
               {upcomingFavorites.map((item, i) => (
                 <div
                   key={i}
-                  className="flex items-center justify-between rounded-xl bg-white/80 px-3 py-1.5 text-xs shadow-2xs dark:bg-zinc-900/80"
+                  className="flex items-center justify-between rounded-xl bg-white/80 px-3 py-1.5 text-xs shadow-2xs dark:bg-zinc-900/80 gap-2"
                 >
-                  <span className="font-bold text-zinc-700 dark:text-zinc-200">{item.dateStr}</span>
+                  <span className="font-bold text-zinc-700 dark:text-zinc-200 whitespace-nowrap shrink-0">{item.dateStr}</span>
                   <span className="font-black text-amber-600 dark:text-amber-300 truncate max-w-[180px]">
                     {item.matchedMenu}
                   </span>
@@ -455,9 +455,9 @@ export function SettingsPanel({ today, review }: Props) {
             const firstKw = favoriteKeywords[0] || "치킨";
             void sendTestKeywordNotification(firstKw, `${firstKw} 특식 세트`);
           }}
-          className="w-full"
+          className="w-full whitespace-nowrap"
         >
-          <Bell className="h-4 w-4" />
+          <Bell className="h-4 w-4 shrink-0" />
           최애 메뉴 알림 테스트
         </Button>
       </Card>

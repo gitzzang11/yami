@@ -34,6 +34,8 @@ export default function App() {
     today,
     tomorrow,
     week,
+    reviews,
+    setReviews,
     review,
     setReview,
     todaySchedules,
@@ -130,47 +132,47 @@ export default function App() {
                     />
                     <TabsTrigger
                       value="home"
-                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative"
+                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative whitespace-nowrap"
                     >
                       <span className={`relative z-10 flex flex-col items-center gap-1 transition-colors ${activeTab === "home" ? "text-white dark:text-theme-active" : ""}`}>
-                        <Home className="h-4.5 w-4.5" />
-                        <span className="text-[10px] font-bold">홈</span>
+                        <Home className="h-4.5 w-4.5 shrink-0" />
+                        <span className="text-[10px] font-bold whitespace-nowrap">홈</span>
                       </span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="calendar"
-                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative"
+                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative whitespace-nowrap"
                     >
                       <span className={`relative z-10 flex flex-col items-center gap-1 transition-colors ${activeTab === "calendar" ? "text-white dark:text-theme-active" : ""}`}>
-                        <Calendar className="h-4.5 w-4.5" />
-                        <span className="text-[10px] font-bold">달력</span>
+                        <Calendar className="h-4.5 w-4.5 shrink-0" />
+                        <span className="text-[10px] font-bold whitespace-nowrap">달력</span>
                       </span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="stats"
-                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative"
+                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative whitespace-nowrap"
                     >
                       <span className={`relative z-10 flex flex-col items-center gap-1 transition-colors ${activeTab === "stats" ? "text-white dark:text-theme-active" : ""}`}>
-                        <BarChart3 className="h-4.5 w-4.5" />
-                        <span className="text-[10px] font-bold">통계</span>
+                        <BarChart3 className="h-4.5 w-4.5 shrink-0" />
+                        <span className="text-[10px] font-bold whitespace-nowrap">통계</span>
                       </span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="criteria"
-                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative"
+                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative whitespace-nowrap"
                     >
                       <span className={`relative z-10 flex flex-col items-center gap-1 transition-colors ${activeTab === "criteria" ? "text-white dark:text-theme-active" : ""}`}>
-                        <SlidersHorizontal className="h-4.5 w-4.5" />
-                        <span className="text-[10px] font-bold">기준</span>
+                        <SlidersHorizontal className="h-4.5 w-4.5 shrink-0" />
+                        <span className="text-[10px] font-bold whitespace-nowrap">기준</span>
                       </span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="settings"
-                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative"
+                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative whitespace-nowrap"
                     >
                       <span className={`relative z-10 flex flex-col items-center gap-1 transition-colors ${activeTab === "settings" ? "text-white dark:text-theme-active" : ""}`}>
-                        <Settings className="h-4.5 w-4.5" />
-                        <span className="text-[10px] font-bold">설정</span>
+                        <Settings className="h-4.5 w-4.5 shrink-0" />
+                        <span className="text-[10px] font-bold whitespace-nowrap">설정</span>
                       </span>
                     </TabsTrigger>
                   </TabsList>
@@ -187,6 +189,7 @@ export default function App() {
                     tomorrow={tomorrow}
                     week={week}
                     review={review}
+                    reviews={reviews}
                     todaySchedules={todaySchedules}
                     feedback={todayFeedback}
                     onFeedbackChange={setTodayFeedback}
@@ -194,7 +197,11 @@ export default function App() {
                     error={error}
                     offline={offline}
                     onReload={reload}
-                    onReview={setReview}
+                    onReview={(r) => {
+                      setReview(r);
+                      setReviews([r, ...reviews.filter((item) => item.id !== r.id)]);
+                    }}
+                    onReviewsChange={setReviews}
                   />
                 </TabsContent>
                 <TabsContent value="calendar"><CalendarPanel /></TabsContent>

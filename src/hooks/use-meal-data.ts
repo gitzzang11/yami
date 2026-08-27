@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { db } from "@/db/app-db";
 import { getUserMealFeedback } from "@/services/feedback";
-import { getLatestReview } from "@/services/gemini";
+import { getAllReviewsForMeal } from "@/services/gemini";
 import { getSchoolSchedulesByRange, getTodayTomorrowWeek } from "@/services/neis";
 import type { AiReview, LoadState, Meal, MealKind, School, SchoolScheduleEvent, UserMealFeedback } from "@/types";
 
@@ -12,6 +12,7 @@ export function useMealData(school?: School, neisApiKey?: string, initialKind: M
   const [today, setToday] = useState<Meal>();
   const [tomorrow, setTomorrow] = useState<Meal>();
   const [week, setWeek] = useState<Meal[]>([]);
+  const [reviews, setReviews] = useState<AiReview[]>([]);
   const [review, setReview] = useState<AiReview>();
   const [todaySchedules, setTodaySchedules] = useState<SchoolScheduleEvent[]>([]);
   const [todayFeedback, setTodayFeedback] = useState<UserMealFeedback>();
@@ -24,6 +25,8 @@ export function useMealData(school?: School, neisApiKey?: string, initialKind: M
       setState("empty");
       setTodaySchedules([]);
       setTodayFeedback(undefined);
+      setReviews([]);
+      setReview(undefined);
       return;
     }
     setState("loading");
@@ -41,8 +44,8 @@ export function useMealData(school?: School, neisApiKey?: string, initialKind: M
       setOffline(false);
       setState(data.today || data.week.length ? "success" : "empty");
       if (data.today) {
-        const [latestReview, feedback] = await Promise.all([
-          getLatestReview(
+        const [allReviews, feedback] = await Promise.all([
+          getAllReviewsForMeal(
             data.today.id,
             school.schoolCode,
             data.today.date,
@@ -50,9 +53,11 @@ export function useMealData(school?: School, neisApiKey?: string, initialKind: M
           ),
           getUserMealFeedback(school.schoolCode, data.today.date, mealKind),
         ]);
-        setReview(latestReview);
+        setReviews(allReviews);
+        setReview(allReviews[0]);
         setTodayFeedback(feedback);
       } else {
+        setReviews([]);
         setReview(undefined);
         setTodayFeedback(undefined);
       }
@@ -66,8 +71,8 @@ export function useMealData(school?: School, neisApiKey?: string, initialKind: M
       setWeek(cached.slice(0, 7).reverse());
       setToday(cached[0]);
       if (cached[0]) {
-        const [latestReview, feedback] = await Promise.all([
-          getLatestReview(
+        const [allReviews, feedback] = await Promise.all([
+          getAllReviewsForMeal(
             cached[0].id,
             school.schoolCode,
             cached[0].date,
@@ -75,7 +80,8 @@ export function useMealData(school?: School, neisApiKey?: string, initialKind: M
           ),
           getUserMealFeedback(school.schoolCode, cached[0].date, mealKind),
         ]);
-        setReview(latestReview);
+        setReviews(allReviews);
+        setReview(allReviews[0]);
         setTodayFeedback(feedback);
         setOffline(true);
         setState("success");
@@ -99,6 +105,8 @@ export function useMealData(school?: School, neisApiKey?: string, initialKind: M
     today,
     tomorrow,
     week,
+    reviews,
+    setReviews,
     review,
     setReview,
     todaySchedules,

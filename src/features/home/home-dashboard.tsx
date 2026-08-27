@@ -5,24 +5,28 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
   Check,
+  ChevronDown,
   CloudOff,
   Copy,
   Flame,
+  History,
   RefreshCw,
   Share2,
   Sparkles,
   Star,
+  Trash2,
   Utensils,
   X,
 } from "lucide-react";
+import { EvaluatingAnimation } from "@/components/evaluating-animation";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { ALLERGIES_MAP, formatKoreanDate, parseNutritionInfo, scoreTone } from "@/lib/utils";
 import { USER_REACTION_CONFIG, saveUserMealFeedback } from "@/services/feedback";
-import { CRITIC_PERSONAS, evaluateMealWithGemini } from "@/services/gemini";
+import { CRITIC_PERSONAS, deleteReviewById, evaluateMealWithGemini } from "@/services/gemini";
 import { scheduleDailyMealNotification } from "@/services/notifications";
 import { useAppStore } from "@/stores/app-store";
-import type { AiReview, LoadState, Meal, MealKind, School, SchoolScheduleEvent, UserMealFeedback, UserMealReaction } from "@/types";
+import type { AiReview, CriticPersonaId, LoadState, Meal, MealKind, School, SchoolScheduleEvent, UserMealFeedback, UserMealReaction } from "@/types";
 
 type Props = {
   school: School;
@@ -32,6 +36,7 @@ type Props = {
   tomorrow?: Meal;
   week: Meal[];
   review?: AiReview;
+  reviews?: AiReview[];
   todaySchedules?: SchoolScheduleEvent[];
   feedback?: UserMealFeedback;
   onFeedbackChange?: (feedback: UserMealFeedback) => void;
@@ -40,6 +45,7 @@ type Props = {
   offline: boolean;
   onReload: () => void;
   onReview: (review: AiReview) => void;
+  onReviewsChange?: (reviews: AiReview[]) => void;
 };
 
 const MEAL_KIND_LABELS: Record<MealKind, string> = {
@@ -56,6 +62,7 @@ export function HomeDashboard({
   tomorrow,
   week,
   review,
+  reviews = [],
   todaySchedules = [],
   feedback,
   onFeedbackChange,
@@ -64,8 +71,13 @@ export function HomeDashboard({
   offline,
   onReload,
   onReview,
+  onReviewsChange,
 }: Props) {
   const { settings, criteria } = useAppStore();
+  const [selectedPersona, setSelectedPersona] = useState<CriticPersonaId>(
+    settings.criticPersona ?? "student",
+  );
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evalError, setEvalError] = useState<string | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -80,8 +92,9 @@ export function HomeDashboard({
     favoriteKeywords.some((k) => m.toLowerCase().includes(k.toLowerCase())),
   );
 
-  async function evaluate() {
+  async function evaluate(personaToUse?: CriticPersonaId) {
     if (!today) return;
+    const targetPersona = personaToUse ?? selectedPersona ?? settings.criticPersona ?? "student";
     setIsEvaluating(true);
     setEvalError(null);
     try {
@@ -91,7 +104,7 @@ export function HomeDashboard({
         settings.geminiApiKey,
         settings.geminiModel,
         school.kind,
-        settings.criticPersona ?? "student",
+        targetPersona,
       );
       onReview(result);
       if (settings.notificationsEnabled) {
@@ -277,7 +290,7 @@ export function HomeDashboard({
                         key={item.raw || item.name}
                         initial={{ opacity: 0, scale: 0.94 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold shadow-sm ring-1 ${
+                        className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold shadow-sm ring-1 whitespace-nowrap shrink-0 ${
                           hasAllergyWarning
                             ? "bg-rose-50 text-rose-700 ring-rose-300 dark:bg-rose-950/40 dark:text-rose-200 dark:ring-rose-800"
                             : isFavorite
@@ -315,7 +328,7 @@ export function HomeDashboard({
                         key={item}
                         initial={{ opacity: 0, scale: 0.94 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className={`flex items-center gap-1 rounded-full px-4 py-2 text-sm font-bold shadow-sm ring-1 ${
+                        className={`flex items-center gap-1 rounded-full px-4 py-2 text-sm font-bold shadow-sm ring-1 whitespace-nowrap shrink-0 ${
                           isFavorite
                             ? "bg-amber-50/90 text-amber-900 ring-amber-300 dark:bg-amber-950/40 dark:text-amber-100 dark:ring-amber-700"
                             : "bg-white/78 text-zinc-900 ring-white/70 dark:bg-white/12 dark:text-white dark:ring-white/10"
@@ -337,6 +350,46 @@ export function HomeDashboard({
 
       {/* AI 급식 평가 카드 */}
       <Card className="space-y-4">
+        {/* 페르소나 평가 히스토리 탭 칩 목록 (여러 평가가 존재할 때 빠른 전환) */}
+        {reviews.length > 0 && (
+          <div className="space-y-1.5 pb-1 border-b border-zinc-200/50 dark:border-zinc-800/50">
+            <div className="flex items-center justify-between text-2xs font-black text-zinc-400 dark:text-zinc-500">
+              <span>페르소나별 평가 기록 ({reviews.length}건)</span>
+              <span className="text-[10px] text-zinc-400">칩을 눌러 전환</span>
+            </div>
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+              {reviews.map((r, idx) => {
+                const p = CRITIC_PERSONAS[r.persona || "student"];
+                const isCurrent = review?.id === r.id;
+                const rTone = scoreTone(r.totalScore);
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => onReview(r)}
+                    className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black transition-all shrink-0 cursor-pointer ${
+                      isCurrent
+                        ? "bg-zinc-950 text-white shadow-md dark:bg-white dark:text-zinc-950 ring-2 ring-[var(--theme)] scale-105"
+                        : "bg-zinc-100/80 text-zinc-600 hover:bg-zinc-200 dark:bg-white/10 dark:text-zinc-300"
+                    }`}
+                  >
+                    <span>{p?.icon || "🎓"}</span>
+                    <span>{r.personaName || p?.name}</span>
+                    <span className={`text-[11px] font-bold ${isCurrent ? "" : rTone.textClassName}`}>
+                      {r.totalScore}점
+                    </span>
+                    {idx === 0 && (
+                      <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-300 font-bold">
+                        최신
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-1.5 flex-wrap mb-1">
@@ -360,18 +413,9 @@ export function HomeDashboard({
           {review?.oneLine ?? "AI가 급식의 운명을 기다리고 있어요"}
         </p>
 
-        {/* AI 평가 중 애니메이션 */}
+        {/* AI 평가 중 재치 있는 다이내믹 애니메이션 */}
         {isEvaluating && (
-          <motion.div
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-3 rounded-2xl bg-zinc-100/80 p-4 dark:bg-white/10"
-          >
-            <Sparkles className="h-5 w-5 animate-spin text-[var(--theme)]" />
-            <div className="text-sm font-bold text-zinc-700 dark:text-zinc-200 animate-pulse">
-              AI 셰프가 식단 구성을 시식 및 평가하는 중입니다...
-            </div>
-          </motion.div>
+          <EvaluatingAnimation persona={selectedPersona} />
         )}
 
         {evalError && (
@@ -419,14 +463,135 @@ export function HomeDashboard({
           </div>
         ) : null}
 
+        {/* 📜 전체 평가 히스토리 타임라인 아코디언 */}
+        {reviews.length > 1 && (
+          <div className="pt-2 border-t border-zinc-200/60 dark:border-zinc-800/60">
+            <button
+              type="button"
+              onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+              className="flex items-center justify-between w-full py-1 text-xs font-black text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition cursor-pointer"
+            >
+              <span className="flex items-center gap-1.5">
+                <History className="h-4 w-4 text-[var(--theme)]" />
+                이 메뉴의 전체 평가 히스토리 ({reviews.length}건)
+              </span>
+              <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isHistoryOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {isHistoryOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-3 space-y-2"
+              >
+                {reviews.map((r, idx) => {
+                  const p = CRITIC_PERSONAS[r.persona || "student"];
+                  const rTone = scoreTone(r.totalScore);
+                  const isSelected = review?.id === r.id;
+                  const timeStr = new Date(r.createdAt).toLocaleTimeString("ko-KR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
+                  return (
+                    <div
+                      key={r.id}
+                      className={`flex items-center justify-between gap-3 rounded-2xl p-3 transition ${
+                        isSelected
+                          ? "bg-zinc-100 dark:bg-white/15 ring-1.5 ring-[var(--theme)] shadow-xs"
+                          : "bg-zinc-50 dark:bg-white/5 hover:bg-zinc-100/60 dark:hover:bg-white/10"
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        className="min-w-0 flex-1 text-left cursor-pointer"
+                        onClick={() => onReview(r)}
+                      >
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-base">{p?.icon || "🎓"}</span>
+                          <span className="text-xs font-black text-zinc-900 dark:text-white">
+                            {r.personaName || p?.name}
+                          </span>
+                          <span className="text-2xs text-zinc-400 font-medium">
+                            {timeStr}
+                          </span>
+                          {idx === 0 && (
+                            <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-300 font-bold">
+                              최신
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 text-xs font-bold text-zinc-700 dark:text-zinc-200 line-clamp-1">
+                          &ldquo;{r.oneLine}&rdquo;
+                        </p>
+                      </button>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`text-base font-black ${rTone.textClassName}`}>
+                          {r.totalScore}점
+                        </span>
+                        <button
+                          type="button"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            await deleteReviewById(r.id);
+                            const remaining = reviews.filter((item) => item.id !== r.id);
+                            onReviewsChange?.(remaining);
+                            if (review?.id === r.id) {
+                              onReview(remaining[0]);
+                            }
+                          }}
+                          className="p-1 text-zinc-400 hover:text-rose-500 transition cursor-pointer"
+                          title="이 평가 기록 삭제"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </motion.div>
+            )}
+          </div>
+        )}
+
+        {/* 페르소나 선택 칩 바 (평가할 페르소나 선택) */}
+        <div className="pt-2 border-t border-zinc-200/50 dark:border-zinc-800/50 space-y-2">
+          <div className="flex items-center justify-between text-2xs font-black text-zinc-500 dark:text-zinc-400">
+            <span>비평가 페르소나 선택:</span>
+            <span className="text-[var(--theme)] font-bold">{CRITIC_PERSONAS[selectedPersona]?.name}</span>
+          </div>
+          <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
+            {(Object.keys(CRITIC_PERSONAS) as CriticPersonaId[]).map((pId) => {
+              const p = CRITIC_PERSONAS[pId];
+              const isSelected = selectedPersona === pId;
+              return (
+                <button
+                  key={pId}
+                  type="button"
+                  onClick={() => setSelectedPersona(pId)}
+                  className={`flex items-center justify-center gap-1 rounded-xl py-1.5 px-1.5 text-2xs font-black transition cursor-pointer whitespace-nowrap overflow-hidden ${
+                    isSelected
+                      ? "bg-zinc-950 text-white shadow-sm dark:bg-white dark:text-zinc-950 ring-1 ring-[var(--theme)]"
+                      : "bg-zinc-100/80 text-zinc-600 hover:bg-zinc-200 dark:bg-white/5 dark:text-zinc-400 dark:hover:bg-white/10"
+                  }`}
+                >
+                  <span className="shrink-0">{p.icon}</span>
+                  <span className="truncate">{p.name.replace(" 셰프", "").replace(" 선생님", "").replace(" 분석관", "")}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="flex gap-2">
           <Button
-            onClick={evaluate}
+            onClick={() => evaluate(selectedPersona)}
             disabled={!today || state === "loading" || isEvaluating}
-            className="flex-1"
+            className="flex-1 whitespace-nowrap"
           >
-            <Sparkles className="h-5 w-5" />
-            {isEvaluating ? "평가 진행 중..." : review ? "AI 다시 평가하기" : "AI 평가하기"}
+            <Sparkles className="h-5 w-5 shrink-0" />
+            <span className="truncate">{isEvaluating ? "평가 진행 중..." : `${CRITIC_PERSONAS[selectedPersona]?.name}로 평가하기`}</span>
           </Button>
 
           {today && (
@@ -446,18 +611,18 @@ export function HomeDashboard({
       {/* 🗳️ 내 체감 평가 & AI vs 내 입맛 비교 카드 */}
       {today && (
         <Card className="space-y-4 bg-gradient-to-br from-white/90 to-amber-50/40 dark:from-white/5 dark:to-amber-950/10 border-amber-200/40 dark:border-amber-800/20">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2">
-              <span className="text-xl">🗳️</span>
+              <span className="text-xl shrink-0">🗳️</span>
               <div>
-                <CardTitle className="text-base font-black">내 체감 평가</CardTitle>
+                <CardTitle className="text-base font-black whitespace-nowrap">내 체감 평가</CardTitle>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
                   직접 먹어본 급식은 어땠나요? AI 점수와 내 입맛을 비교해 드려요!
                 </p>
               </div>
             </div>
             {feedback && (
-              <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-black text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/30">
+              <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-black text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-500/30 whitespace-nowrap shrink-0">
                 <Check className="h-3.5 w-3.5 stroke-[3]" /> 평가 완료
               </span>
             )}
@@ -477,14 +642,14 @@ export function HomeDashboard({
                     const updated = await saveUserMealFeedback(today, key, currentScore);
                     onFeedbackChange?.(updated);
                   }}
-                  className={`flex flex-col items-center justify-center gap-1 rounded-2xl py-2.5 px-2 text-xs font-black transition-all cursor-pointer ${
+                  className={`flex flex-col items-center justify-center gap-1 rounded-2xl py-2.5 px-2 text-xs font-black transition-all cursor-pointer select-none ${
                     isSelected
                       ? cfg.activeClass + " shadow-sm scale-105"
                       : "bg-white/80 dark:bg-white/5 text-zinc-700 dark:text-zinc-300 ring-1 ring-zinc-200/60 dark:ring-white/10 hover:bg-zinc-100 dark:hover:bg-white/10"
                   }`}
                 >
-                  <span className="text-xl">{cfg.emoji}</span>
-                  <span>{cfg.label}</span>
+                  <span className="text-xl shrink-0">{cfg.emoji}</span>
+                  <span className="whitespace-nowrap">{cfg.label}</span>
                 </button>
               );
             })}
@@ -581,7 +746,7 @@ export function HomeDashboard({
           <div className="mt-3 flex flex-wrap gap-2">
             {tomorrow?.menu.length ? (
               tomorrow.menu.map((item) => (
-                <span key={item} className="rounded-full bg-zinc-100 px-3 py-1.5 text-xs font-bold dark:bg-white/10">
+                <span key={item} className="rounded-full bg-zinc-100 px-3 py-1.5 text-xs font-bold dark:bg-white/10 whitespace-nowrap shrink-0">
                   {item}
                 </span>
               ))
@@ -599,19 +764,19 @@ export function HomeDashboard({
               {/* 탄단지 매크로 시각화 */}
               {(nutrition.carbs !== undefined || nutrition.protein !== undefined || nutrition.fat !== undefined) && (
                 <div className="space-y-2 rounded-2xl bg-zinc-50 p-3.5 dark:bg-white/5">
-                  <div className="text-xs font-bold text-zinc-500 dark:text-zinc-400">주요 영양소 밸런스</div>
+                  <div className="text-xs font-bold text-zinc-500 dark:text-zinc-400 whitespace-nowrap">주요 영양소 밸런스</div>
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div className="rounded-xl bg-amber-500/10 p-2 text-amber-700 dark:text-amber-300">
-                      <div className="text-[11px] font-semibold">탄수화물</div>
-                      <div className="text-sm font-black">{nutrition.carbs ?? "-"}g</div>
+                      <div className="text-[11px] font-semibold whitespace-nowrap">탄수화물</div>
+                      <div className="text-sm font-black whitespace-nowrap">{nutrition.carbs ?? "-"}g</div>
                     </div>
                     <div className="rounded-xl bg-emerald-500/10 p-2 text-emerald-700 dark:text-emerald-300">
-                      <div className="text-[11px] font-semibold">단백질</div>
-                      <div className="text-sm font-black">{nutrition.protein ?? "-"}g</div>
+                      <div className="text-[11px] font-semibold whitespace-nowrap">단백질</div>
+                      <div className="text-sm font-black whitespace-nowrap">{nutrition.protein ?? "-"}g</div>
                     </div>
                     <div className="rounded-xl bg-rose-500/10 p-2 text-rose-700 dark:text-rose-300">
-                      <div className="text-[11px] font-semibold">지방</div>
-                      <div className="text-sm font-black">{nutrition.fat ?? "-"}g</div>
+                      <div className="text-[11px] font-semibold whitespace-nowrap">지방</div>
+                      <div className="text-sm font-black whitespace-nowrap">{nutrition.fat ?? "-"}g</div>
                     </div>
                   </div>
                 </div>
@@ -621,8 +786,8 @@ export function HomeDashboard({
               <div className="max-h-36 overflow-y-auto space-y-1 text-xs leading-5 text-zinc-600 dark:text-zinc-400 pr-1">
                 {nutrition.items.map((it, idx) => (
                   <div key={idx} className="flex justify-between border-b border-zinc-100 py-0.5 dark:border-zinc-800">
-                    <span className="font-medium">{it.label}</span>
-                    <span className="font-bold text-zinc-800 dark:text-zinc-200">{it.value}</span>
+                    <span className="font-medium whitespace-nowrap">{it.label}</span>
+                    <span className="font-bold text-zinc-800 dark:text-zinc-200 whitespace-nowrap">{it.value}</span>
                   </div>
                 ))}
               </div>
@@ -643,14 +808,14 @@ export function HomeDashboard({
                 key={meal.id}
                 className="rounded-3xl bg-white/60 p-4 ring-1 ring-zinc-200 dark:bg-white/10 dark:ring-white/10"
               >
-                <div className="mb-2 text-sm font-black">
+                <div className="mb-2 text-sm font-black whitespace-nowrap">
                   {meal.date.slice(4, 6)}월 {meal.date.slice(6)}일
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {meal.menu.slice(0, 7).map((item) => (
                     <span
                       key={item}
-                      className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold dark:bg-zinc-950/40"
+                      className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold dark:bg-zinc-950/40 whitespace-nowrap shrink-0"
                     >
                       {item}
                     </span>
@@ -683,8 +848,8 @@ export function HomeDashboard({
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Meal Scorecard</span>
-                  <h3 className="text-lg font-black text-zinc-900 dark:text-white">급식 성적표 공유</h3>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 whitespace-nowrap">Meal Scorecard</span>
+                  <h3 className="text-lg font-black text-zinc-900 dark:text-white whitespace-nowrap">급식 성적표 공유</h3>
                 </div>
                 <button
                   type="button"
@@ -698,18 +863,18 @@ export function HomeDashboard({
               {/* 공유용 카드 프리뷰 */}
               <div className="rounded-3xl border border-zinc-200/80 bg-gradient-to-br from-zinc-50 to-white p-5 shadow-sm dark:border-zinc-800 dark:from-zinc-900 dark:to-zinc-950 space-y-3">
                 <div className="flex items-center justify-between text-xs font-bold text-zinc-500 dark:text-zinc-400">
-                  <span>{school.name}</span>
-                  <span>{formatKoreanDate(new Date())}</span>
+                  <span className="truncate">{school.name}</span>
+                  <span className="whitespace-nowrap shrink-0">{formatKoreanDate(new Date())}</span>
                 </div>
 
                 <div className="flex items-center justify-between py-1">
                   <div>
-                    <span className="text-xs font-bold text-zinc-400">{MEAL_KIND_LABELS[mealKind]} AI 점수</span>
-                    <div className="text-3xl font-black text-zinc-900 dark:text-white">
+                    <span className="text-xs font-bold text-zinc-400 whitespace-nowrap">{MEAL_KIND_LABELS[mealKind]} AI 점수</span>
+                    <div className="text-3xl font-black text-zinc-900 dark:text-white whitespace-nowrap">
                       {review ? `${review.totalScore}점` : "평가 전"}
                     </div>
                   </div>
-                  <div className={`grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br ${tone.className} text-3xl shadow-md`}>
+                  <div className={`grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br ${tone.className} text-3xl shadow-md shrink-0`}>
                     {tone.emoji}
                   </div>
                 </div>
