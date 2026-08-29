@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BarChart3, Calendar, Home, Settings, SlidersHorizontal } from "lucide-react";
+import { BarChart3, Calendar, Home, Settings } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CalendarPanel } from "@/features/calendar/calendar-panel";
-import { CriteriaEditor } from "@/features/criteria/criteria-editor";
 import { HomeDashboard } from "@/features/home/home-dashboard";
 import { SchoolSearch } from "@/features/school/school-search";
 import { SettingsPanel } from "@/features/settings/settings-panel";
@@ -24,8 +23,7 @@ export default function App() {
     home: 0,
     calendar: 1,
     stats: 2,
-    criteria: 3,
-    settings: 4,
+    settings: 3,
   };
   const activeIndex = tabIndices[activeTab] ?? 0;
   const {
@@ -117,16 +115,16 @@ export default function App() {
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <div className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] left-1/2 z-30 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md">
                   <TabsList
-                    className="grid grid-cols-5 h-16 items-center gap-1 rounded-full border border-white/15 dark:border-white/15 bg-zinc-900/60 dark:bg-black/40 p-1.5 text-white shadow-[0_8px_32px_rgba(0,0,0,0.37)] dark:shadow-[0_16px_48px_-8px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.15)] relative"
+                    className="grid grid-cols-4 h-16 items-center gap-1 rounded-full border border-white/15 dark:border-white/15 bg-zinc-900/60 dark:bg-black/40 p-1.5 text-white shadow-[0_8px_32px_rgba(0,0,0,0.37)] dark:shadow-[0_16px_48px_-8px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.15)] relative"
                     style={{
                       backdropFilter: "blur(20px)",
                       WebkitBackdropFilter: "blur(20px)",
                     }}
                   >
                     <motion.div
-                      className="active-tab-bg absolute w-[calc((100%-0.75rem)/5)]"
+                      className="active-tab-bg absolute w-[calc((100%-0.75rem)/4)]"
                       animate={{
-                        left: `calc(0.375rem + (100% - 0.75rem) / 5 * ${activeIndex})`
+                        left: `calc(0.375rem + (100% - 0.75rem) / 4 * ${activeIndex})`
                       }}
                       transition={{ type: "spring", stiffness: 380, damping: 30 }}
                     />
@@ -155,15 +153,6 @@ export default function App() {
                       <span className={`relative z-10 flex flex-col items-center gap-1 transition-colors ${activeTab === "stats" ? "text-white dark:text-theme-active" : ""}`}>
                         <BarChart3 className="h-4.5 w-4.5 shrink-0" />
                         <span className="text-[10px] font-bold whitespace-nowrap">통계</span>
-                      </span>
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="criteria"
-                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative whitespace-nowrap"
-                    >
-                      <span className={`relative z-10 flex flex-col items-center gap-1 transition-colors ${activeTab === "criteria" ? "text-white dark:text-theme-active" : ""}`}>
-                        <SlidersHorizontal className="h-4.5 w-4.5 shrink-0" />
-                        <span className="text-[10px] font-bold whitespace-nowrap">기준</span>
                       </span>
                     </TabsTrigger>
                     <TabsTrigger
@@ -206,7 +195,6 @@ export default function App() {
                 </TabsContent>
                 <TabsContent value="calendar"><CalendarPanel /></TabsContent>
                 <TabsContent value="stats"><StatsPanel /></TabsContent>
-                <TabsContent value="criteria"><CriteriaEditor /></TabsContent>
                 <TabsContent value="settings"><SettingsPanel today={today} review={review} /></TabsContent>
               </Tabs>
             </motion.div>

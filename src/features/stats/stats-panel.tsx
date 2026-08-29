@@ -151,6 +151,35 @@ export function StatsPanel() {
 
   return (
     <div className="space-y-5">
+      {/* 🎯 마일스톤 온보딩 프로그레스 배너 (평가 3회 미만일 때) */}
+      {reviews.length < 3 && (
+        <Card className="border-amber-300/80 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-transparent p-4 space-y-2.5 dark:border-amber-800/40">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🎯</span>
+              <div>
+                <h3 className="text-sm font-black text-zinc-900 dark:text-white">
+                  급식 통계 마일스톤 ({reviews.length}/3회 완료)
+                </h3>
+                <p className="text-2xs text-zinc-600 dark:text-zinc-400">
+                  {3 - reviews.length}번 더 AI 평가를 진행하면 통계 분석과 랭킹의 신뢰도가 대폭 높아집니다!
+                </p>
+              </div>
+            </div>
+            <span className="text-xs font-black text-amber-600 dark:text-amber-400 shrink-0">
+              {Math.round((reviews.length / 3) * 100)}%
+            </span>
+          </div>
+
+          <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200/80 dark:bg-white/10">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-500"
+              style={{ width: `${Math.max(12, (reviews.length / 3) * 100)}%` }}
+            />
+          </div>
+        </Card>
+      )}
+
       {/* 주요 통계 카드 그리드 */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Card className="p-4 text-center">

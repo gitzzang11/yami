@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
@@ -84,7 +84,7 @@ export function HomeDashboard({
   const [copied, setCopied] = useState(false);
 
   const tone = scoreTone(review?.totalScore);
-  const userAllergies = settings.userAllergies ?? [];
+  const userAllergies = useMemo(() => settings.userAllergies ?? [], [settings.userAllergies]);
   const favoriteKeywords: string[] = settings.favoriteKeywords ?? [];
   const nutrition = parseNutritionInfo(today?.nutrition, today?.calories);
 
@@ -92,8 +92,25 @@ export function HomeDashboard({
     favoriteKeywords.some((k) => m.toLowerCase().includes(k.toLowerCase())),
   );
 
+  const todayMenuItems = today?.menuItems;
+  const todayAllergiesMatched = useMemo(() => {
+    if (!todayMenuItems || userAllergies.length === 0) return [];
+    const matched = new Set<string>();
+    todayMenuItems.forEach((item) => {
+      item.allergies.forEach((a) => {
+        if (userAllergies.includes(a)) {
+          matched.add(ALLERGIES_MAP[a] || `${a}번`);
+        }
+      });
+    });
+    return Array.from(matched);
+  }, [todayMenuItems, userAllergies]);
+
   async function evaluate(personaToUse?: CriticPersonaId) {
     if (!today) return;
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      navigator.vibrate(25);
+    }
     const targetPersona = personaToUse ?? selectedPersona ?? settings.criticPersona ?? "student";
     setIsEvaluating(true);
     setEvalError(null);
@@ -271,82 +288,136 @@ export function HomeDashboard({
               ))}
             </div>
           ) : today ? (
-            <motion.div layout className="flex flex-wrap gap-2">
-              {today.menuItems && today.menuItems.length > 0
-                ? today.menuItems.map((item) => {
-                    const hasAllergyWarning =
-                      userAllergies.length > 0 &&
-                      item.allergies.some((a) => userAllergies.includes(a));
-                    const matchedAllergies = item.allergies
-                      .filter((a) => userAllergies.includes(a))
-                      .map((a) => ALLERGIES_MAP[a] || `${a}번`);
+            <div className="space-y-3">
+              {/* 알레르기 안심 세이프티 긴급 배너 */}
+              {todayAllergiesMatched.length > 0 && (
+                <div className="flex items-center gap-2 rounded-2xl border border-rose-300/80 bg-rose-50/90 p-3 text-xs font-black text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200 shadow-sm">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                  <span>
+                    알레르기 주의: 오늘 식단에 [{todayAllergiesMatched.join(", ")}] 포함되어 있습니다!
+                  </span>
+                </div>
+              )}
 
-                    const isFavorite = favoriteKeywords.some((k) =>
-                      item.name.toLowerCase().includes(k.toLowerCase()),
-                    );
+              <motion.div layout className="flex flex-wrap gap-2">
+                {today.menuItems && today.menuItems.length > 0
+                  ? today.menuItems.map((item) => {
+                      const hasAllergyWarning =
+                        userAllergies.length > 0 &&
+                        item.allergies.some((a) => userAllergies.includes(a));
+                      const matchedAllergies = item.allergies
+                        .filter((a) => userAllergies.includes(a))
+                        .map((a) => ALLERGIES_MAP[a] || `${a}번`);
 
-                    return (
-                      <motion.div
-                        key={item.raw || item.name}
-                        initial={{ opacity: 0, scale: 0.94 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold shadow-sm ring-1 whitespace-nowrap shrink-0 ${
-                          hasAllergyWarning
-                            ? "bg-rose-50 text-rose-700 ring-rose-300 dark:bg-rose-950/40 dark:text-rose-200 dark:ring-rose-800"
-                            : isFavorite
-                              ? "bg-amber-50/90 text-amber-900 ring-amber-300 dark:bg-amber-950/40 dark:text-amber-100 dark:ring-amber-700 shadow-amber-500/10"
-                              : "bg-white/80 text-zinc-900 ring-white/70 dark:bg-white/12 dark:text-white dark:ring-white/10"
-                        }`}
-                      >
-                        {hasAllergyWarning ? (
-                          <span
-                            className="flex items-center text-xs text-rose-600 dark:text-rose-400"
-                            title={`알레르기 주의: ${matchedAllergies.join(", ")}`}
-                          >
-                            <AlertTriangle className="h-3.5 w-3.5 mr-0.5" />
-                          </span>
-                        ) : isFavorite ? (
-                          <span className="flex items-center text-amber-500" title="내가 좋아하는 최애 메뉴!">
-                            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500 mr-0.5" />
-                          </span>
-                        ) : null}
-                        <span>{item.name}</span>
-                        {item.allergies.length > 0 && (
-                          <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-normal">
-                            ({item.allergies.join(".")})
-                          </span>
-                        )}
-                      </motion.div>
-                    );
-                  })
-                : today.menu.map((item) => {
-                    const isFavorite = favoriteKeywords.some((k) =>
-                      item.toLowerCase().includes(k.toLowerCase()),
-                    );
-                    return (
-                      <motion.span
-                        key={item}
-                        initial={{ opacity: 0, scale: 0.94 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className={`flex items-center gap-1 rounded-full px-4 py-2 text-sm font-bold shadow-sm ring-1 whitespace-nowrap shrink-0 ${
-                          isFavorite
-                            ? "bg-amber-50/90 text-amber-900 ring-amber-300 dark:bg-amber-950/40 dark:text-amber-100 dark:ring-amber-700"
-                            : "bg-white/78 text-zinc-900 ring-white/70 dark:bg-white/12 dark:text-white dark:ring-white/10"
-                        }`}
-                      >
-                        {isFavorite && <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />}
-                        <span>{item}</span>
-                      </motion.span>
-                    );
-                  })}
-            </motion.div>
+                      const isFavorite = favoriteKeywords.some((k) =>
+                        item.name.toLowerCase().includes(k.toLowerCase()),
+                      );
+
+                      return (
+                        <motion.div
+                          key={item.raw || item.name}
+                          initial={{ opacity: 0, scale: 0.94 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold shadow-sm ring-1 whitespace-nowrap shrink-0 ${
+                            hasAllergyWarning
+                              ? "bg-rose-50 text-rose-700 ring-rose-300 dark:bg-rose-950/40 dark:text-rose-200 dark:ring-rose-800"
+                              : isFavorite
+                                ? "bg-amber-50/90 text-amber-900 ring-amber-300 dark:bg-amber-950/40 dark:text-amber-100 dark:ring-amber-700 shadow-amber-500/10"
+                                : "bg-white/80 text-zinc-900 ring-white/70 dark:bg-white/12 dark:text-white dark:ring-white/10"
+                          }`}
+                        >
+                          {hasAllergyWarning ? (
+                            <span
+                              className="flex items-center text-xs text-rose-600 dark:text-rose-400"
+                              title={`알레르기 주의: ${matchedAllergies.join(", ")}`}
+                            >
+                              <AlertTriangle className="h-3.5 w-3.5 mr-0.5" />
+                            </span>
+                          ) : isFavorite ? (
+                            <span className="flex items-center text-amber-500" title="내가 좋아하는 최애 메뉴!">
+                              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500 mr-0.5" />
+                            </span>
+                          ) : null}
+                          <span>{item.name}</span>
+                          {item.allergies.length > 0 && (
+                            <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-normal">
+                              ({item.allergies.join(".")})
+                            </span>
+                          )}
+                        </motion.div>
+                      );
+                    })
+                  : today.menu.map((item) => {
+                      const isFavorite = favoriteKeywords.some((k) =>
+                        item.toLowerCase().includes(k.toLowerCase()),
+                      );
+                      return (
+                        <motion.span
+                          key={item}
+                          initial={{ opacity: 0, scale: 0.94 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className={`flex items-center gap-1 rounded-full px-4 py-2 text-sm font-bold shadow-sm ring-1 whitespace-nowrap shrink-0 ${
+                            isFavorite
+                              ? "bg-amber-50/90 text-amber-900 ring-amber-300 dark:bg-amber-950/40 dark:text-amber-100 dark:ring-amber-700"
+                              : "bg-white/78 text-zinc-900 ring-white/70 dark:bg-white/12 dark:text-white dark:ring-white/10"
+                          }`}
+                        >
+                          {isFavorite && <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />}
+                          <span>{item}</span>
+                        </motion.span>
+                      );
+                    })}
+              </motion.div>
+            </div>
           ) : (
-            <p className="rounded-3xl bg-white/60 p-5 text-sm font-semibold text-zinc-500 dark:bg-white/10">
-              {state === "error" ? error : `오늘 등록된 ${MEAL_KIND_LABELS[mealKind]} 정보가 없습니다.`}
-            </p>
+            <div className="rounded-3xl bg-white/60 p-6 text-center dark:bg-white/5 space-y-2 border border-zinc-200/50 dark:border-white/5">
+              <div className="text-3xl">🏖️</div>
+              <div className="font-black text-sm text-zinc-800 dark:text-zinc-200">
+                {state === "error" ? error : `오늘은 ${MEAL_KIND_LABELS[mealKind]} 정보가 없거나 쉬어가는 날입니다.`}
+              </div>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                주말, 공휴일, 재량휴업일 또는 방학 기간에는 급식이 제공되지 않습니다.
+              </p>
+            </div>
           )}
         </div>
       </Card>
+
+      {/* 🚀 평가 전 원탭 AI 채점 대형 액션 배너 */}
+      {!review && today && !isEvaluating && (
+        <motion.button
+          type="button"
+          initial={{ scale: 0.97, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => {
+            if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(20);
+            void evaluate(selectedPersona);
+          }}
+          className="w-full relative overflow-hidden rounded-[26px] bg-gradient-to-r from-[var(--theme)] via-sky-500 to-indigo-600 p-4 text-white shadow-xl shadow-[var(--theme)]/25 flex items-center justify-between gap-3 cursor-pointer group transition-all"
+        >
+          <div className="flex items-center gap-3 text-left">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 text-2xl backdrop-blur-sm shadow-inner group-hover:rotate-6 transition-transform shrink-0">
+              {CRITIC_PERSONAS[selectedPersona]?.icon || "🎓"}
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider bg-white/25 px-2 py-0.5 rounded-full">
+                  원탭 AI 채점
+                </span>
+                <span className="text-2xs text-white/80">3초 소요</span>
+              </div>
+              <div className="text-sm sm:text-base font-black tracking-tight mt-0.5">
+                {CRITIC_PERSONAS[selectedPersona]?.name}로 오늘 급식 즉시 채점하기
+              </div>
+            </div>
+          </div>
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-zinc-950 shadow-md group-hover:translate-x-1 transition-transform shrink-0">
+            <Sparkles className="h-4.5 w-4.5 text-[var(--theme)]" />
+          </div>
+        </motion.button>
+      )}
 
       {/* AI 급식 평가 카드 */}
       <Card className="space-y-4">
@@ -638,6 +709,7 @@ export function HomeDashboard({
                   key={key}
                   type="button"
                   onClick={async () => {
+                    if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(15);
                     const currentScore = feedback?.score ?? cfg.defaultScore;
                     const updated = await saveUserMealFeedback(today, key, currentScore);
                     onFeedbackChange?.(updated);
@@ -672,6 +744,7 @@ export function HomeDashboard({
                     key={starIdx}
                     type="button"
                     onClick={async () => {
+                      if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(15);
                       const reaction = feedback?.reaction ?? "good";
                       const updated = await saveUserMealFeedback(today, reaction, targetScore);
                       onFeedbackChange?.(updated);

@@ -35,7 +35,9 @@ describe("Notifications & Holiday Logic Tests", () => {
   it("should format notification with complete meal menu without cutting off after 4 items", () => {
     const fullMeal: Meal = {
       id: "meal-1",
+      officeCode: "B10",
       schoolCode: "7010057",
+      schoolName: "테스트고등학교",
       date: "20260828",
       kind: "lunch",
       kindName: "중식",
@@ -48,7 +50,9 @@ describe("Notifications & Holiday Logic Tests", () => {
         "샤인머스캣",
         "유기농우유",
       ],
+      rawMenu: "찰보리밥\n소고기미역국\n수제치즈돈까스\n골뱅이소면무침\n배추김치\n샤인머스캣\n유기농우유",
       calories: "820 kcal",
+      updatedAt: Date.now(),
     };
 
     const review: AiReview = {
@@ -56,6 +60,7 @@ describe("Notifications & Holiday Logic Tests", () => {
       mealId: "meal-1",
       schoolCode: "7010057",
       date: "20260828",
+      model: "gemini-3.5-flash",
       persona: "paik",
       personaName: "백종원 셰프",
       totalScore: 95,

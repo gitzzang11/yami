@@ -19,7 +19,7 @@ import { EvaluatingAnimation } from "@/components/evaluating-animation";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { db } from "@/db/app-db";
-import { formatKoreanDate, parseNutritionInfo, scoreTone } from "@/lib/utils";
+import { formatKoreanDate, parseNutritionInfo, scoreTone, cn } from "@/lib/utils";
 import { USER_REACTION_CONFIG } from "@/services/feedback";
 import { CRITIC_PERSONAS, deleteReviewById, evaluateMealWithGemini } from "@/services/gemini";
 import { getMealsByRange, getSchoolSchedulesByRange } from "@/services/neis";
@@ -267,10 +267,18 @@ export function CalendarPanel() {
       {/* 캘린더 그리드 (스와이프 & 슬라이드 애니메이션) */}
       <Card className="p-3 overflow-hidden relative">
         {/* 요일 헤더 */}
-        <div className="grid grid-cols-7 text-center text-xs font-bold text-zinc-400 dark:text-zinc-500 mb-2">
-          {["일", "월", "화", "수", "목", "금", "토"].map((w) => (
-            <div key={w} className="py-1">
-              {w}
+        <div className="grid grid-cols-7 text-center text-xs font-bold mb-2">
+          {[
+            { label: "일", className: "text-rose-500 font-black" },
+            { label: "월", className: "text-zinc-400 dark:text-zinc-500" },
+            { label: "화", className: "text-zinc-400 dark:text-zinc-500" },
+            { label: "수", className: "text-zinc-400 dark:text-zinc-500" },
+            { label: "목", className: "text-zinc-400 dark:text-zinc-500" },
+            { label: "금", className: "text-zinc-400 dark:text-zinc-500" },
+            { label: "토", className: "text-sky-500 font-black" },
+          ].map((w) => (
+            <div key={w.label} className={cn("py-1", w.className)}>
+              {w.label}
             </div>
           ))}
         </div>
@@ -331,6 +339,8 @@ export function CalendarPanel() {
                 const isSelected = isSameDay(day, selectedDate);
                 const isToday = isSameDay(day, new Date());
                 const dayTone = scoreTone(review?.totalScore);
+                const isSunday = day.getDay() === 0;
+                const isSaturday = day.getDay() === 6;
 
                 const hasFavorite =
                   favoriteKeywords.length > 0 &&
@@ -345,15 +355,14 @@ export function CalendarPanel() {
                   <button
                     key={day.toString()}
                     type="button"
-                    onClick={() => setSelectedDate(day)}
-                    className={`relative flex flex-col items-center justify-between aspect-square p-1 rounded-2xl transition-all active:scale-90 ${
-                      isCurrentMonth
-                        ? "text-zinc-950 dark:text-white"
-                        : "text-zinc-300 dark:text-zinc-700"
-                    } ${
+                    onClick={() => {
+                      if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(10);
+                      setSelectedDate(day);
+                    }}
+                    className={`relative flex flex-col items-center justify-between aspect-square p-1 rounded-2xl transition-all active:scale-90 cursor-pointer ${
                       isSelected
-                        ? "ring-2 ring-[var(--theme)] bg-white/40 dark:bg-white/5"
-                        : "hover:bg-zinc-100 dark:hover:bg-white/5"
+                        ? "ring-2 ring-[var(--theme)] bg-white/60 dark:bg-white/10 shadow-xs"
+                        : "hover:bg-zinc-100/70 dark:hover:bg-white/5"
                     }`}
                   >
                     {/* 학사 일정 아이콘 표시 (셀 좌측 상단) */}
@@ -378,9 +387,22 @@ export function CalendarPanel() {
 
                     {/* 날짜 표시 */}
                     <span
-                      className={`text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full ${
-                        isToday ? "bg-[var(--theme)] text-white" : ""
-                      }`}
+                      className={cn(
+                        "text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full",
+                        isToday
+                          ? "bg-[var(--theme)] text-white shadow-xs"
+                          : isCurrentMonth
+                            ? isSunday
+                              ? "text-rose-500 font-black"
+                              : isSaturday
+                                ? "text-sky-500 font-black"
+                                : "text-zinc-950 dark:text-white"
+                            : isSunday
+                              ? "text-rose-300/60 dark:text-rose-900/60"
+                              : isSaturday
+                                ? "text-sky-300/60 dark:text-sky-900/60"
+                                : "text-zinc-300 dark:text-zinc-700",
+                      )}
                     >
                       {format(day, "d")}
                     </span>
@@ -766,8 +788,16 @@ export function CalendarPanel() {
               </Card>
             </div>
           ) : (
-            <Card className="p-8 text-center text-sm font-semibold text-zinc-500 dark:bg-white/5">
-              이 날은 {MEAL_KIND_LABELS[calendarKind]} 정보가 등록되지 않은 날입니다.
+            <Card className="p-8 text-center space-y-2.5 bg-gradient-to-br from-white via-zinc-50/50 to-amber-50/20 dark:from-zinc-900 dark:via-zinc-900/60 dark:to-amber-950/10 border-dashed border-zinc-300 dark:border-zinc-800">
+              <div className="text-4xl">🏖️</div>
+              <div className="text-base font-black text-zinc-800 dark:text-zinc-200">
+                {selectedSchedules.length > 0
+                  ? `${selectedSchedules.map((s) => s.eventName).join(", ")} (급식 없음)`
+                  : `선택하신 날짜는 ${MEAL_KIND_LABELS[calendarKind]} 정보가 없습니다.`}
+              </div>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto break-keep">
+                주말, 공휴일, 재량휴업일 또는 방학 기간에는 학교 급식이 제공되지 않습니다.
+              </p>
             </Card>
           )}
         </motion.div>
