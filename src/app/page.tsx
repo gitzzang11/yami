@@ -52,6 +52,10 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", settings.darkMode);
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute("content", settings.darkMode ? "#090a0f" : "#ffffff");
+    }
   }, [settings.darkMode]);
 
   useEffect(() => {
@@ -98,6 +102,11 @@ export default function App() {
 
   return (
     <main className="min-h-dvh bg-app px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-[calc(1.25rem+env(safe-area-inset-top))] text-zinc-950 dark:text-white sm:px-6">
+      {/* 상단 상태표시줄(Status Bar) 가독성 보호를 위한 자연스러운 페이드 아웃 스크림 */}
+      <div
+        className="fixed top-0 left-0 right-0 z-20 pointer-events-none h-[calc(env(safe-area-inset-top,0px)+2.75rem)] bg-gradient-to-b from-white via-white/80 to-transparent dark:from-[#090a0f] dark:via-[#090a0f]/85 dark:to-transparent transition-colors duration-200"
+        aria-hidden="true"
+      />
       <NotificationToast />
       <div className="mx-auto max-w-5xl">
         <AnimatePresence mode="wait">
