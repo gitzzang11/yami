@@ -446,16 +446,6 @@ export function SettingsPanel({ today, review }: Props) {
             />
           </div>
 
-          <div className="rounded-2xl border border-amber-300/80 bg-gradient-to-r from-yellow-50/80 to-amber-50/80 p-3 text-xs font-bold text-amber-900 dark:border-amber-800/40 dark:from-yellow-950/20 dark:to-amber-950/20 dark:text-amber-200 shadow-2xs space-y-1">
-            <div className="flex items-center gap-1.5 font-black text-amber-950 dark:text-amber-200">
-              <span>⚡</span>
-              <span>메시지 앱 스타일 빠른 평가 반응 (👍, ❤️, 👎, 🤢)</span>
-            </div>
-            <p className="text-2xs font-normal text-zinc-600 dark:text-zinc-400 break-keep leading-relaxed">
-              달력이나 홈 화면에서 메뉴를 직접 터치하면 메시지 앱처럼 플로팅 반응 팝업(👍, ❤️, 👎, 🤢)이 나타납니다. 특히 <span className="font-bold text-rose-600 dark:text-rose-400">하트(❤️)</span>를 선택하면 형광펜으로 그어지며 최애 메뉴로 등록되고, <span className="font-bold text-amber-700 dark:text-amber-300">전날 저녁(D-1)과 당일(D-DAY)</span>에 재치있는 메시지가 담긴 알림을 보내드립니다.
-            </p>
-          </div>
-
           {/* 키워드 직접 추가 입력창 */}
           <div className="flex gap-2">
             <Input
@@ -476,7 +466,7 @@ export function SettingsPanel({ today, review }: Props) {
           {/* 추천 인기 밥도둑 프리셋 태그 */}
           <div className="space-y-1.5">
             <div className="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider whitespace-nowrap">
-              추천 인기 키워드 (클릭하여 추가/제거)
+              추천 인기 키워드
             </div>
             <div className="flex flex-wrap gap-1.5">
               {POPULAR_KEYWORD_PRESETS.map((preset) => {

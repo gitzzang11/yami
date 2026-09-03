@@ -190,11 +190,7 @@ export function MenuReactionChip({
         whileHover={{ scale: 1.04 }}
         whileTap={{ scale: 0.94 }}
         onClick={() => setIsOpen((prev) => !prev)}
-        title={
-          activeReaction
-            ? `'${name}' (${activeReaction}) 터치하여 반응 변경 또는 해제`
-            : `'${name}' 터치하여 빠른 반응 남기기 (따봉, 하트, 역따봉, 슬픔 등)`
-        }
+        title={name}
         className={`group relative flex items-center gap-1.5 rounded-full font-bold shadow-sm whitespace-nowrap cursor-pointer select-none transition-all ${sizeClasses} ${
           isHeart
             ? "highlighter-mark ring-2 ring-yellow-400 dark:ring-yellow-400/80 scale-[1.02]"

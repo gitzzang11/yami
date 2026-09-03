@@ -498,13 +498,6 @@ export function CalendarPanel() {
             </motion.div>
           </AnimatePresence>
         </div>
-
-        {/* 하단 스와이프 안내 힌트 */}
-        <div className="flex items-center justify-center gap-1.5 pt-2 text-[10px] font-bold text-zinc-400 dark:text-zinc-500 select-none">
-          <ChevronLeft className="h-3 w-3 animate-pulse" />
-          <span>좌우로 스와이프하여 이전/다음 달 이동</span>
-          <ChevronRight className="h-3 w-3 animate-pulse" />
-        </div>
       </Card>
 
       {/* 선택 날짜 상세 정보 */}
@@ -553,10 +546,6 @@ export function CalendarPanel() {
                     <Utensils className="h-4 w-4" />
                     급식 식단
                   </CardTitle>
-                  <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1 bg-amber-500/10 px-2.5 py-0.5 rounded-full ring-1 ring-amber-400/30">
-                    <span>⚡</span>
-                    <span>메뉴 터치 시 빠른 반응 (👍, ❤️, 👎, 🤢)</span>
-                  </span>
                 </div>
 
                 <div className="flex flex-wrap gap-2">

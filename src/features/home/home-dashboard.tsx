@@ -326,10 +326,6 @@ export function HomeDashboard({
                 <Utensils className="h-5 w-5" />
                 오늘 {MEAL_KIND_LABELS[mealKind]}
               </CardTitle>
-              <span className="text-2xs font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1 bg-amber-500/10 px-2.5 py-0.5 rounded-full ring-1 ring-amber-400/30">
-                <span>⚡</span>
-                <span>메뉴 터치 시 빠른 반응 (👍, ❤️, 👎, 🤢)</span>
-              </span>
             </div>
             <div className="flex items-center gap-2">
               {hasFavoriteInToday && (
@@ -481,7 +477,6 @@ export function HomeDashboard({
           <div className="space-y-1.5 pb-1 border-b border-zinc-200/50 dark:border-zinc-800/50">
             <div className="flex items-center justify-between text-2xs font-black text-zinc-400 dark:text-zinc-500">
               <span>페르소나별 평가 기록 ({reviews.length}건)</span>
-              <span className="text-[10px] text-zinc-400">칩을 눌러 전환</span>
             </div>
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
               {reviews.map((r, idx) => {
