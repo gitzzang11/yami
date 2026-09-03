@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { formatNotificationContent, isHoliday } from "@/services/notifications";
+import {
+  formatNotificationContent,
+  getFavoriteDDayMessage,
+  getFavoriteDMinus1Message,
+  isHoliday,
+} from "@/services/notifications";
 import type { AiReview, Meal } from "@/types";
 
 describe("Notifications & Holiday Logic Tests", () => {
@@ -83,6 +88,34 @@ describe("Notifications & Holiday Logic Tests", () => {
     expect(body).toContain("유기농우유");
     expect(body).toContain("[820 kcal]");
     expect(body).toContain('· "돈까스 바삭하고 소스 불맛 제대로유!"');
+  });
+
+  it("should format witty D-1 notification for favorite menus", () => {
+    const { title, body } = getFavoriteDMinus1Message(
+      "돈까스",
+      ["수제치즈돈까스"],
+      "중식",
+      ["찰보리밥", "미역국", "수제치즈돈까스", "배추김치"],
+    );
+
+    expect(title).toContain("[D-1]");
+    expect(title).toContain("돈까스");
+    expect(body).toContain("수제치즈돈까스");
+    expect(body).toContain("내일 식단: 찰보리밥, 미역국, 수제치즈돈까스, 배추김치");
+  });
+
+  it("should format witty D-DAY notification for favorite menus", () => {
+    const { title, body } = getFavoriteDDayMessage(
+      "치킨",
+      ["뿌링클 순살 치킨"],
+      "중식",
+      ["치킨마요덮밥", "미소된장국", "뿌링클 순살 치킨", "깍두기"],
+    );
+
+    expect(title).toContain("[D-DAY]");
+    expect(title).toContain("치킨");
+    expect(body).toContain("뿌링클 순살 치킨");
+    expect(body).toContain("전체 식단: 치킨마요덮밥, 미소된장국, 뿌링클 순살 치킨, 깍두기");
   });
 
   it("should handle empty or undefined meal gracefully", () => {

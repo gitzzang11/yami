@@ -13,18 +13,21 @@ import {
   isSameDay,
   format,
 } from "date-fns";
-import { AlertTriangle, BookOpen, Calendar as CalendarIcon, ChevronDown, ChevronLeft, ChevronRight, History, Sparkles, Star, Trash2, Utensils } from "lucide-react";
+import { BookOpen, Calendar as CalendarIcon, ChevronDown, ChevronLeft, ChevronRight, History, Sparkles, Trash2, Utensils } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { EvaluatingAnimation } from "@/components/evaluating-animation";
+import { MenuReactionChip, getReactionConfig } from "@/components/menu-reaction-chip";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
+import { showToast } from "@/components/ui/toast";
 import { db } from "@/db/app-db";
 import { formatKoreanDate, parseNutritionInfo, scoreTone, cn } from "@/lib/utils";
 import { USER_REACTION_CONFIG } from "@/services/feedback";
 import { CRITIC_PERSONAS, deleteReviewById, evaluateMealWithGemini } from "@/services/gemini";
 import { getMealsByRange, getSchoolSchedulesByRange } from "@/services/neis";
+import { scheduleKeywordMealNotifications } from "@/services/notifications";
 import { useAppStore } from "@/stores/app-store";
-import type { AiReview, CriticPersonaId, Meal, MealKind, ScheduleEventType, SchoolScheduleEvent, UserMealFeedback } from "@/types";
+import type { AiReview, CriticPersonaId, Meal, MealKind, MenuReactionType, ScheduleEventType, SchoolScheduleEvent, UserMealFeedback } from "@/types";
 
 const MEAL_KIND_LABELS: Record<MealKind, string> = {
   breakfast: "조식",
@@ -69,7 +72,7 @@ export const EVENT_TYPE_CONFIG: Record<
 };
 
 export function CalendarPanel() {
-  const { settings, criteria } = useAppStore();
+  const { settings, criteria, setMenuReaction } = useAppStore();
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [calendarKind, setCalendarKind] = useState<MealKind>(settings.preferredMealKind ?? "lunch");
   const [meals, setMeals] = useState<Meal[]>([]);
@@ -90,6 +93,63 @@ export function CalendarPanel() {
 
   const userAllergies = settings.userAllergies ?? [];
   const favoriteKeywords = settings.favoriteKeywords ?? [];
+  const menuReactions = settings.menuReactions ?? {};
+
+  // 메시지 앱 스타일 빠른 반응 (따봉, 하트, 역따봉, 슬픔 등) 선택 핸들러
+  const handleSelectMenuReaction = (rawName: string, reaction: MenuReactionType | null) => {
+    const cleanName = rawName.replace(/\([0-9.]+\)/g, "").trim();
+    if (!cleanName) return;
+
+    setMenuReaction(cleanName, reaction);
+
+    const currentFavorites = settings.favoriteKeywords ?? [];
+    let nextFavorites: string[];
+
+    if (!reaction) {
+      showToast({
+        type: "unheart",
+        message: `'${cleanName}' 반응 해제`,
+        subMessage: "선택한 평가 반응이 취소되었습니다.",
+      });
+      nextFavorites = currentFavorites.filter(
+        (k) =>
+          k.toLowerCase() !== cleanName.toLowerCase() &&
+          !cleanName.toLowerCase().includes(k.toLowerCase()) &&
+          !k.toLowerCase().includes(cleanName.toLowerCase()),
+      );
+    } else {
+      const config = getReactionConfig(reaction);
+      if (config) {
+        showToast({
+          type: config.toastType,
+          message: `'${cleanName}' ${config.toastMessage}`,
+          subMessage: config.toastSub,
+        });
+      }
+
+      if (reaction === "❤️") {
+        nextFavorites = currentFavorites.includes(cleanName)
+          ? currentFavorites
+          : [...currentFavorites, cleanName];
+      } else {
+        nextFavorites = currentFavorites.filter(
+          (k) =>
+            k.toLowerCase() !== cleanName.toLowerCase() &&
+            !cleanName.toLowerCase().includes(k.toLowerCase()) &&
+            !k.toLowerCase().includes(cleanName.toLowerCase()),
+        );
+      }
+    }
+
+    // 최애 메뉴 알림 즉시 동기화
+    if (settings.keywordNotificationsEnabled && settings.selectedSchool?.schoolCode) {
+      scheduleKeywordMealNotifications(
+        settings.notificationTime,
+        nextFavorites,
+        settings.selectedSchool.schoolCode,
+      );
+    }
+  };
 
   // 급식, AI 평가, 학사일정 및 내 체감 평가 데이터 동시 가져오기
   const loadMonthData = useCallback(async (month: Date, kind: MealKind) => {
@@ -487,61 +547,70 @@ export function CalendarPanel() {
           {selectedMeal ? (
             <div className="space-y-4">
               {/* 급식 식단 카드 */}
-              <Card className="bg-[radial-gradient(circle_at_20%_20%,rgba(14,165,233,.1),transparent_30%)] p-4">
-                <CardTitle className="flex items-center gap-2 mb-3 text-sm">
-                  <Utensils className="h-4 w-4" />
-                  급식 식단
-                </CardTitle>
+              <Card className="bg-[radial-gradient(circle_at_20%_20%,rgba(14,165,233,.1),transparent_30%)] p-4 overflow-visible">
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-1.5">
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <Utensils className="h-4 w-4" />
+                    급식 식단
+                  </CardTitle>
+                  <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1 bg-amber-500/10 px-2.5 py-0.5 rounded-full ring-1 ring-amber-400/30">
+                    <span>⚡</span>
+                    <span>메뉴 터치 시 빠른 반응 (👍, ❤️, 👎, 🤢)</span>
+                  </span>
+                </div>
+
                 <div className="flex flex-wrap gap-2">
                   {selectedMeal.menuItems && selectedMeal.menuItems.length > 0
                     ? selectedMeal.menuItems.map((item) => {
+                        const cleanName = item.name.replace(/\([0-9.]+\)/g, "").trim();
                         const hasAllergy =
                           userAllergies.length > 0 &&
                           item.allergies.some((a) => userAllergies.includes(a));
-                        const isFavorite = favoriteKeywords.some((k) =>
-                          item.name.toLowerCase().includes(k.toLowerCase()),
+                        const isFavorite = favoriteKeywords.some(
+                          (k) =>
+                            k.toLowerCase() === cleanName.toLowerCase() ||
+                            cleanName.toLowerCase().includes(k.toLowerCase()) ||
+                            k.toLowerCase().includes(cleanName.toLowerCase()),
                         );
+                        const currentReaction = menuReactions[cleanName] ?? (isFavorite ? "❤️" : null);
+
                         return (
-                          <span
+                          <MenuReactionChip
                             key={item.raw || item.name}
-                            className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold shadow-sm whitespace-nowrap shrink-0 ${
-                              hasAllergy
-                                ? "bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-200 ring-1 ring-rose-300 dark:ring-rose-800"
-                                : isFavorite
-                                  ? "bg-amber-50/90 text-amber-900 ring-1 ring-amber-300 dark:bg-amber-950/40 dark:text-amber-100 dark:ring-amber-700"
-                                  : "bg-white/70 text-zinc-900 dark:bg-white/10 dark:text-white"
-                            }`}
-                          >
-                            {hasAllergy ? (
-                              <AlertTriangle className="h-3 w-3 text-rose-600" />
-                            ) : isFavorite ? (
-                              <Star className="h-3 w-3 fill-amber-400 text-amber-500" />
-                            ) : null}
-                            <span>{item.name}</span>
-                            {item.allergies.length > 0 && (
-                              <span className="text-[10px] text-zinc-400 font-normal">
-                                ({item.allergies.join(".")})
-                              </span>
-                            )}
-                          </span>
+                            name={item.name}
+                            raw={item.raw}
+                            allergies={item.allergies}
+                            hasAllergyWarning={hasAllergy}
+                            currentReaction={currentReaction}
+                            isFavorite={isFavorite}
+                            onSelectReaction={(reaction) =>
+                              handleSelectMenuReaction(item.name, reaction)
+                            }
+                            size="sm"
+                          />
                         );
                       })
                     : selectedMeal.menu.map((item) => {
-                        const isFavorite = favoriteKeywords.some((k) =>
-                          item.toLowerCase().includes(k.toLowerCase()),
+                        const cleanName = item.replace(/\([0-9.]+\)/g, "").trim();
+                        const isFavorite = favoriteKeywords.some(
+                          (k) =>
+                            k.toLowerCase() === cleanName.toLowerCase() ||
+                            cleanName.toLowerCase().includes(k.toLowerCase()) ||
+                            k.toLowerCase().includes(cleanName.toLowerCase()),
                         );
+                        const currentReaction = menuReactions[cleanName] ?? (isFavorite ? "❤️" : null);
+
                         return (
-                          <span
+                          <MenuReactionChip
                             key={item}
-                            className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold shadow-sm whitespace-nowrap shrink-0 ${
-                              isFavorite
-                                ? "bg-amber-50/90 text-amber-900 ring-1 ring-amber-300 dark:bg-amber-950/40 dark:text-amber-100 dark:ring-amber-700"
-                                : "bg-white/70 text-zinc-900 dark:bg-white/10 dark:text-white"
-                            }`}
-                          >
-                            {isFavorite && <Star className="h-3 w-3 fill-amber-400 text-amber-500" />}
-                            <span>{item}</span>
-                          </span>
+                            name={item}
+                            currentReaction={currentReaction}
+                            isFavorite={isFavorite}
+                            onSelectReaction={(reaction) =>
+                              handleSelectMenuReaction(item, reaction)
+                            }
+                            size="sm"
+                          />
                         );
                       })}
                 </div>

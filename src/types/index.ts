@@ -77,6 +77,8 @@ export type GeminiModelOption = {
   description?: string;
 };
 
+export type MenuReactionType = "👍" | "❤️" | "👎" | "🤢";
+
 export type AppSettings = {
   geminiApiKey: string;
   geminiModel: string;
@@ -90,6 +92,7 @@ export type AppSettings = {
   userAllergies?: number[];
   preferredMealKind?: MealKind;
   favoriteKeywords?: string[];
+  menuReactions?: Record<string, MenuReactionType>;
   keywordNotificationsEnabled?: boolean;
   criticPersona?: CriticPersonaId;
 };

@@ -157,4 +157,29 @@ describe("User Feedback & Meal Awards Tests", () => {
     expect(friedCat).toBeDefined();
     expect(friedCat?.count).toBeGreaterThan(0);
   });
+
+  it("should configure messaging app 4 quick menu reactions (thumbs up, heart, thumbs down, barf) properly", async () => {
+    const { getReactionConfig, MENU_REACTIONS } = await import("@/components/menu-reaction-chip");
+
+    expect(MENU_REACTIONS.length).toBe(4);
+
+    const thumbsUp = getReactionConfig("👍");
+    expect(thumbsUp).toBeDefined();
+    expect(thumbsUp?.label).toBe("따봉");
+    expect(thumbsUp?.toastType).toBe("success");
+
+    const heart = getReactionConfig("❤️");
+    expect(heart).toBeDefined();
+    expect(heart?.label).toContain("하트");
+    expect(heart?.pillClass).toContain("highlighter-mark");
+
+    const thumbsDown = getReactionConfig("👎");
+    expect(thumbsDown).toBeDefined();
+    expect(thumbsDown?.label).toBe("역따봉");
+
+    const barf = getReactionConfig("🤢");
+    expect(barf).toBeDefined();
+    expect(barf?.label).toBe("웩");
+    expect(barf?.toastMessage).toContain("웩");
+  });
 });

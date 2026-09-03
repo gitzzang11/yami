@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import type { AppSettings, Criterion, School } from "@/types";
+import type { AppSettings, Criterion, MenuReactionType, School } from "@/types";
 
 const defaultCriteria: Criterion[] = [
   { id: "dessert", label: "디저트 포함", weight: 1.2, enabled: true },
@@ -23,6 +23,7 @@ const defaultSettings: AppSettings = {
   userAllergies: [],
   preferredMealKind: "lunch",
   favoriteKeywords: ["치킨", "돈까스", "마라탕", "스파게티", "와플"],
+  menuReactions: {},
   keywordNotificationsEnabled: false,
   criticPersona: "student",
 };
@@ -37,6 +38,7 @@ type AppStore = {
   addFavoriteKeyword: (keyword: string) => void;
   removeFavoriteKeyword: (keyword: string) => void;
   toggleFavoriteKeyword: (keyword: string) => void;
+  setMenuReaction: (menuName: string, reaction: MenuReactionType | null) => void;
   setSchool: (school: School) => void;
   addCriterion: (label: string) => void;
   updateCriterion: (id: string, updates: Partial<Criterion>) => void;
@@ -82,6 +84,59 @@ export const useAppStore = create<AppStore>()(
             ? current.filter((k) => k !== trimmed)
             : [...current, trimmed];
           return { settings: { ...state.settings, favoriteKeywords: next } };
+        }),
+      setMenuReaction: (menuName, reaction) =>
+        set((state) => {
+          const cleanName = menuName.replace(/\([0-9.]+\)/g, "").trim();
+          if (!cleanName) return state;
+
+          const currentReactions = { ...(state.settings.menuReactions ?? {}) };
+          const currentFavorites = [...(state.settings.favoriteKeywords ?? [])];
+
+          // 이미 같은 반응이 선택되어 있거나 reaction이 null인 경우 -> 반응 해제
+          if (!reaction || currentReactions[cleanName] === reaction) {
+            delete currentReactions[cleanName];
+            const nextFavorites = currentFavorites.filter(
+              (k) =>
+                k.toLowerCase() !== cleanName.toLowerCase() &&
+                !cleanName.toLowerCase().includes(k.toLowerCase()) &&
+                !k.toLowerCase().includes(cleanName.toLowerCase()),
+            );
+            return {
+              settings: {
+                ...state.settings,
+                menuReactions: currentReactions,
+                favoriteKeywords: nextFavorites,
+              },
+            };
+          }
+
+          // 새로운 반응 적용
+          currentReactions[cleanName] = reaction;
+          let nextFavorites = currentFavorites;
+
+          if (reaction === "❤️") {
+            // 하트인 경우 최애 키워드로도 등록
+            if (!nextFavorites.some((k) => k.toLowerCase() === cleanName.toLowerCase())) {
+              nextFavorites = [...nextFavorites, cleanName];
+            }
+          } else {
+            // 다른 반응(👍, 👎, 😢 등)인 경우 최애 키워드 목록에서는 제외
+            nextFavorites = nextFavorites.filter(
+              (k) =>
+                k.toLowerCase() !== cleanName.toLowerCase() &&
+                !cleanName.toLowerCase().includes(k.toLowerCase()) &&
+                !k.toLowerCase().includes(cleanName.toLowerCase()),
+            );
+          }
+
+          return {
+            settings: {
+              ...state.settings,
+              menuReactions: currentReactions,
+              favoriteKeywords: nextFavorites,
+            },
+          };
         }),
       setSchool: (school) =>
         set((state) => ({ settings: { ...state.settings, selectedSchool: school } })),

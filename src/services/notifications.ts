@@ -299,6 +299,44 @@ export async function sendTestNotification(meal?: Meal, review?: AiReview) {
   });
 }
 
+export function getFavoriteDMinus1Message(
+  firstKeyword: string,
+  matchedMenus: string[],
+  mealKind: string = "급식",
+  fullMenu: string[] = [],
+): { title: string; body: string } {
+  const title = `📢 [D-1] 내일 최애 메뉴 나온다! (${firstKeyword}) 💓`;
+  const wittyLines = [
+    `내일 ${mealKind}에 최애 '${matchedMenus.join(", ")}' 출격 대기 중! 🤤 벌써 침 고이는 중... 숟가락 갈고 일찍 자요! 😴✨`,
+    `내일은 절대 급식 패스 금지! 최애 '${matchedMenus.join(", ")}' 나오는 날! 🏃💨 4교시 종 치자마자 1등 달리기 시동 거세요!`,
+    `두근두근 심장 박동수 급상승! 내일 '${matchedMenus.join(", ")}' 등장 실화?! 🍱🔥 내일 밥 두 공기 비빌 각입니다!`,
+  ];
+  const index = Math.abs(firstKeyword.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0)) % wittyLines.length;
+  const body = fullMenu.length > 0 
+    ? `${wittyLines[index]}\n내일 식단: ${fullMenu.join(", ")}`
+    : wittyLines[index];
+  return { title, body };
+}
+
+export function getFavoriteDDayMessage(
+  firstKeyword: string,
+  matchedMenus: string[],
+  mealKind: string = "급식",
+  fullMenu: string[] = [],
+): { title: string; body: string } {
+  const title = `🎉 [D-DAY] 오늘 ${mealKind}에 최애 메뉴 등장! (${firstKeyword}) ❤️`;
+  const wittyLines = [
+    `드디어 오늘! ${mealKind}에 기다리고 기다리던 '${matchedMenus.join(", ")}' 먹는 날! 🍱✨ 영양사 선생님 방향으로 넙죽 절 올리고 식판 두 번 채우기 약속! 🍚😋`,
+    `오늘 ${mealKind} 텐션 무한 상승! '${matchedMenus.join(", ")}' 나왔어요! 🤤 친구들이랑 반찬 물물교환 협상 테이블 준비 완료! 🥢🔥`,
+    `행복 지수 100% 충전 완료! 최애 '${matchedMenus.join(", ")}' ${mealKind} 출격 완료! 🏃💨 오늘 점심은 무조건 완식하고 행복해지기! ❤️`,
+  ];
+  const index = Math.abs(firstKeyword.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0)) % wittyLines.length;
+  const body = fullMenu.length > 0
+    ? `${wittyLines[index]}\n전체 식단: ${fullMenu.join(", ")}`
+    : wittyLines[index];
+  return { title, body };
+}
+
 export async function scheduleKeywordMealNotifications(
   time: string,
   keywords: string[],
@@ -310,6 +348,17 @@ export async function scheduleKeywordMealNotifications(
   if (!Capacitor.isNativePlatform()) return;
 
   try {
+    // 기존 키워드 알림 ID(10000000 ~ 29999999) 취소
+    const pending = await LocalNotifications.getPending();
+    const keywordPending = pending.notifications.filter(
+      (n) => n.id >= 10000000 && n.id < 30000000,
+    );
+    if (keywordPending.length > 0) {
+      await LocalNotifications.cancel({
+        notifications: keywordPending.map((n) => ({ id: n.id })),
+      });
+    }
+
     const today = new Date();
     const startStr = yyyymmdd(today);
     const endStr = yyyymmdd(addDays(today, 14));
@@ -328,8 +377,7 @@ export async function scheduleKeywordMealNotifications(
       const day = Number(meal.date.slice(6, 8));
       const targetDate = new Date(year, month, day, hour, minute, 0, 0);
 
-      // 이미 지난 시간이나 주말/휴일은 제외
-      if (targetDate.getTime() <= Date.now()) continue;
+      // 주말이나 공휴일 급식은 스킵
       const dayOfWeek = targetDate.getDay();
       if (dayOfWeek === 0 || dayOfWeek === 6 || isHoliday(targetDate)) continue;
 
@@ -342,19 +390,42 @@ export async function scheduleKeywordMealNotifications(
           matchedMenus[0].toLowerCase().includes(k.toLowerCase()),
         ) || keywords[0];
 
-        const title = `⭐ 최애 메뉴 등장! (${firstKeyword})`;
-        const body = `오늘 ${meal.kindName || "급식"}에 '${matchedMenus.join(", ")}'이(가) 나옵니다! 🍱\n전체 메뉴: ${meal.menu.join(", ")}`;
+        const numericDate = Number(meal.date) % 1000000;
 
-        // 20000000 + dateStr
-        const notifId = 20000000 + (Number(meal.date) % 1000000);
+        // 1. 📢 전날 (D-1) 저녁 알림 (저녁 19:30 예약)
+        const dMinus1Date = new Date(year, month, day - 1, 19, 30, 0, 0);
+        if (dMinus1Date.getTime() > Date.now()) {
+          const { title: d1Title, body: d1Body } = getFavoriteDMinus1Message(
+            firstKeyword,
+            matchedMenus,
+            meal.kindName || "급식",
+            meal.menu,
+          );
+          notificationsToSchedule.push({
+            id: 10000000 + numericDate,
+            title: d1Title,
+            body: d1Body,
+            schedule: { at: dMinus1Date, allowWhileIdle: true },
+            smallIcon: "ic_stat_icon_config_sample",
+          });
+        }
 
-        notificationsToSchedule.push({
-          id: notifId,
-          title,
-          body,
-          schedule: { at: targetDate, allowWhileIdle: true },
-          smallIcon: "ic_stat_icon_config_sample",
-        });
+        // 2. 🎉 당일 (D-DAY) 설정 시간 알림
+        if (targetDate.getTime() > Date.now()) {
+          const { title: dDayTitle, body: dDayBody } = getFavoriteDDayMessage(
+            firstKeyword,
+            matchedMenus,
+            meal.kindName || "급식",
+            meal.menu,
+          );
+          notificationsToSchedule.push({
+            id: 20000000 + numericDate,
+            title: dDayTitle,
+            body: dDayBody,
+            schedule: { at: targetDate, allowWhileIdle: true },
+            smallIcon: "ic_stat_icon_config_sample",
+          });
+        }
       }
     }
 
@@ -368,9 +439,27 @@ export async function scheduleKeywordMealNotifications(
   }
 }
 
-export async function sendTestKeywordNotification(keyword = "치킨", menuName = "뿌링클 순살 치킨") {
-  const title = `⭐ 최애 메뉴 등장! (${keyword})`;
-  const body = `오늘 급식에 '${menuName}'(이)가 나옵니다! 🍱\n전체 메뉴: ${menuName}, 찰현미밥, 꽃게탕, 계란찜, 깍두기`;
+export async function sendTestKeywordNotification(
+  keyword = "치킨",
+  menuName = "뿌링클 순살 치킨",
+  mode: "d-day" | "d-1" = "d-day",
+) {
+  const { title, body } =
+    mode === "d-1"
+      ? getFavoriteDMinus1Message(keyword, [menuName], "중식", [
+          menuName,
+          "찰현미밥",
+          "꽃게탕",
+          "계란찜",
+          "깍두기",
+        ])
+      : getFavoriteDDayMessage(keyword, [menuName], "중식", [
+          menuName,
+          "찰현미밥",
+          "꽃게탕",
+          "계란찜",
+          "깍두기",
+        ]);
 
   if (!Capacitor.isNativePlatform()) {
     if ("Notification" in window && Notification.permission === "granted") {
@@ -379,7 +468,8 @@ export async function sendTestKeywordNotification(keyword = "치킨", menuName =
     return;
   }
 
+  const notifId = mode === "d-1" ? 1004 : 1003;
   await LocalNotifications.schedule({
-    notifications: [{ id: 1003, title, body, schedule: { at: new Date(Date.now() + 1000) } }],
+    notifications: [{ id: notifId, title, body, schedule: { at: new Date(Date.now() + 1000) } }],
   });
 }

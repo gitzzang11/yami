@@ -19,14 +19,16 @@ import {
   X,
 } from "lucide-react";
 import { EvaluatingAnimation } from "@/components/evaluating-animation";
+import { MenuReactionChip, getReactionConfig } from "@/components/menu-reaction-chip";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
+import { showToast } from "@/components/ui/toast";
 import { ALLERGIES_MAP, formatKoreanDate, parseNutritionInfo, scoreTone } from "@/lib/utils";
 import { USER_REACTION_CONFIG, saveUserMealFeedback } from "@/services/feedback";
 import { CRITIC_PERSONAS, deleteReviewById, evaluateMealWithGemini } from "@/services/gemini";
-import { scheduleDailyMealNotification } from "@/services/notifications";
+import { scheduleDailyMealNotification, scheduleKeywordMealNotifications } from "@/services/notifications";
 import { useAppStore } from "@/stores/app-store";
-import type { AiReview, CriticPersonaId, LoadState, Meal, MealKind, School, SchoolScheduleEvent, UserMealFeedback, UserMealReaction } from "@/types";
+import type { AiReview, CriticPersonaId, LoadState, Meal, MealKind, MenuReactionType, School, SchoolScheduleEvent, UserMealFeedback, UserMealReaction } from "@/types";
 
 type Props = {
   school: School;
@@ -73,7 +75,7 @@ export function HomeDashboard({
   onReview,
   onReviewsChange,
 }: Props) {
-  const { settings, criteria } = useAppStore();
+  const { settings, criteria, setMenuReaction } = useAppStore();
   const [selectedPersona, setSelectedPersona] = useState<CriticPersonaId>(
     settings.criticPersona ?? "student",
   );
@@ -86,6 +88,7 @@ export function HomeDashboard({
   const tone = scoreTone(review?.totalScore);
   const userAllergies = useMemo(() => settings.userAllergies ?? [], [settings.userAllergies]);
   const favoriteKeywords: string[] = settings.favoriteKeywords ?? [];
+  const menuReactions = settings.menuReactions ?? {};
   const nutrition = parseNutritionInfo(today?.nutrition, today?.calories);
 
   const hasFavoriteInToday = today?.menu.some((m) =>
@@ -105,6 +108,61 @@ export function HomeDashboard({
     });
     return Array.from(matched);
   }, [todayMenuItems, userAllergies]);
+
+  // 메시지 앱 스타일 빠른 반응 (따봉, 하트, 역따봉, 슬픔 등) 선택 핸들러
+  const handleSelectMenuReaction = (rawName: string, reaction: MenuReactionType | null) => {
+    const cleanName = rawName.replace(/\([0-9.]+\)/g, "").trim();
+    if (!cleanName) return;
+
+    setMenuReaction(cleanName, reaction);
+
+    const currentFavorites = settings.favoriteKeywords ?? [];
+    let nextFavorites: string[];
+
+    if (!reaction) {
+      showToast({
+        type: "unheart",
+        message: `'${cleanName}' 반응 해제`,
+        subMessage: "선택한 평가 반응이 취소되었습니다.",
+      });
+      nextFavorites = currentFavorites.filter(
+        (k) =>
+          k.toLowerCase() !== cleanName.toLowerCase() &&
+          !cleanName.toLowerCase().includes(k.toLowerCase()) &&
+          !k.toLowerCase().includes(cleanName.toLowerCase()),
+      );
+    } else {
+      const config = getReactionConfig(reaction);
+      if (config) {
+        showToast({
+          type: config.toastType,
+          message: `'${cleanName}' ${config.toastMessage}`,
+          subMessage: config.toastSub,
+        });
+      }
+
+      if (reaction === "❤️") {
+        nextFavorites = currentFavorites.includes(cleanName)
+          ? currentFavorites
+          : [...currentFavorites, cleanName];
+      } else {
+        nextFavorites = currentFavorites.filter(
+          (k) =>
+            k.toLowerCase() !== cleanName.toLowerCase() &&
+            !cleanName.toLowerCase().includes(k.toLowerCase()) &&
+            !k.toLowerCase().includes(cleanName.toLowerCase()),
+        );
+      }
+    }
+
+    if (settings.keywordNotificationsEnabled && settings.selectedSchool?.schoolCode) {
+      scheduleKeywordMealNotifications(
+        settings.notificationTime,
+        nextFavorites,
+        settings.selectedSchool.schoolCode,
+      );
+    }
+  };
 
   async function evaluate(personaToUse?: CriticPersonaId) {
     if (!today) return;
@@ -260,18 +318,24 @@ export function HomeDashboard({
       ) : null}
 
       {/* 오늘 급식 카드 */}
-      <Card className="overflow-hidden p-0">
-        <div className="bg-[radial-gradient(circle_at_20%_20%,rgba(14,165,233,.25),transparent_30%),radial-gradient(circle_at_80%_0%,rgba(244,63,94,.22),transparent_28%)] p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Utensils className="h-5 w-5" />
-              오늘 {MEAL_KIND_LABELS[mealKind]}
-            </CardTitle>
+      <Card className="overflow-visible p-0">
+        <div className="bg-[radial-gradient(circle_at_20%_20%,rgba(14,165,233,.25),transparent_30%),radial-gradient(circle_at_80%_0%,rgba(244,63,94,.22),transparent_28%)] p-5 overflow-visible">
+          <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2">
+                <Utensils className="h-5 w-5" />
+                오늘 {MEAL_KIND_LABELS[mealKind]}
+              </CardTitle>
+              <span className="text-2xs font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1 bg-amber-500/10 px-2.5 py-0.5 rounded-full ring-1 ring-amber-400/30">
+                <span>⚡</span>
+                <span>메뉴 터치 시 빠른 반응 (👍, ❤️, 👎, 🤢)</span>
+              </span>
+            </div>
             <div className="flex items-center gap-2">
               {hasFavoriteInToday && (
                 <span className="flex items-center gap-1 rounded-full bg-amber-500/20 px-2.5 py-1 text-xs font-black text-amber-700 dark:text-amber-300 ring-1 ring-amber-400/50">
-                  <Star className="h-3 w-3 fill-amber-400 text-amber-500" />
-                  최애 메뉴!
+                  <span className="text-xs">❤️</span>
+                  최애 식단!
                 </span>
               )}
               <span className="flex items-center gap-1 rounded-full bg-white/70 px-3 py-1 text-xs font-black dark:bg-black/20">
@@ -299,9 +363,10 @@ export function HomeDashboard({
                 </div>
               )}
 
-              <motion.div layout className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2">
                 {today.menuItems && today.menuItems.length > 0
                   ? today.menuItems.map((item) => {
+                      const cleanName = item.name.replace(/\([0-9.]+\)/g, "").trim();
                       const hasAllergyWarning =
                         userAllergies.length > 0 &&
                         item.allergies.some((a) => userAllergies.includes(a));
@@ -309,65 +374,55 @@ export function HomeDashboard({
                         .filter((a) => userAllergies.includes(a))
                         .map((a) => ALLERGIES_MAP[a] || `${a}번`);
 
-                      const isFavorite = favoriteKeywords.some((k) =>
-                        item.name.toLowerCase().includes(k.toLowerCase()),
+                      const isFavorite = favoriteKeywords.some(
+                        (k) =>
+                          k.toLowerCase() === cleanName.toLowerCase() ||
+                          cleanName.toLowerCase().includes(k.toLowerCase()) ||
+                          k.toLowerCase().includes(cleanName.toLowerCase()),
                       );
+                      const currentReaction = menuReactions[cleanName] ?? (isFavorite ? "❤️" : null);
 
                       return (
-                        <motion.div
+                        <MenuReactionChip
                           key={item.raw || item.name}
-                          initial={{ opacity: 0, scale: 0.94 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold shadow-sm ring-1 whitespace-nowrap shrink-0 ${
-                            hasAllergyWarning
-                              ? "bg-rose-50 text-rose-700 ring-rose-300 dark:bg-rose-950/40 dark:text-rose-200 dark:ring-rose-800"
-                              : isFavorite
-                                ? "bg-amber-50/90 text-amber-900 ring-amber-300 dark:bg-amber-950/40 dark:text-amber-100 dark:ring-amber-700 shadow-amber-500/10"
-                                : "bg-white/80 text-zinc-900 ring-white/70 dark:bg-white/12 dark:text-white dark:ring-white/10"
-                          }`}
-                        >
-                          {hasAllergyWarning ? (
-                            <span
-                              className="flex items-center text-xs text-rose-600 dark:text-rose-400"
-                              title={`알레르기 주의: ${matchedAllergies.join(", ")}`}
-                            >
-                              <AlertTriangle className="h-3.5 w-3.5 mr-0.5" />
-                            </span>
-                          ) : isFavorite ? (
-                            <span className="flex items-center text-amber-500" title="내가 좋아하는 최애 메뉴!">
-                              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500 mr-0.5" />
-                            </span>
-                          ) : null}
-                          <span>{item.name}</span>
-                          {item.allergies.length > 0 && (
-                            <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-normal">
-                              ({item.allergies.join(".")})
-                            </span>
-                          )}
-                        </motion.div>
+                          name={item.name}
+                          raw={item.raw}
+                          allergies={item.allergies}
+                          hasAllergyWarning={hasAllergyWarning}
+                          matchedAllergies={matchedAllergies}
+                          currentReaction={currentReaction}
+                          isFavorite={isFavorite}
+                          onSelectReaction={(reaction) =>
+                            handleSelectMenuReaction(item.name, reaction)
+                          }
+                          size="md"
+                        />
                       );
                     })
                   : today.menu.map((item) => {
-                      const isFavorite = favoriteKeywords.some((k) =>
-                        item.toLowerCase().includes(k.toLowerCase()),
+                      const cleanName = item.replace(/\([0-9.]+\)/g, "").trim();
+                      const isFavorite = favoriteKeywords.some(
+                        (k) =>
+                          k.toLowerCase() === cleanName.toLowerCase() ||
+                          cleanName.toLowerCase().includes(k.toLowerCase()) ||
+                          k.toLowerCase().includes(cleanName.toLowerCase()),
                       );
+                      const currentReaction = menuReactions[cleanName] ?? (isFavorite ? "❤️" : null);
+
                       return (
-                        <motion.span
+                        <MenuReactionChip
                           key={item}
-                          initial={{ opacity: 0, scale: 0.94 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          className={`flex items-center gap-1 rounded-full px-4 py-2 text-sm font-bold shadow-sm ring-1 whitespace-nowrap shrink-0 ${
-                            isFavorite
-                              ? "bg-amber-50/90 text-amber-900 ring-amber-300 dark:bg-amber-950/40 dark:text-amber-100 dark:ring-amber-700"
-                              : "bg-white/78 text-zinc-900 ring-white/70 dark:bg-white/12 dark:text-white dark:ring-white/10"
-                          }`}
-                        >
-                          {isFavorite && <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />}
-                          <span>{item}</span>
-                        </motion.span>
+                          name={item}
+                          currentReaction={currentReaction}
+                          isFavorite={isFavorite}
+                          onSelectReaction={(reaction) =>
+                            handleSelectMenuReaction(item, reaction)
+                          }
+                          size="md"
+                        />
                       );
                     })}
-              </motion.div>
+              </div>
             </div>
           ) : (
             <div className="rounded-3xl bg-white/60 p-6 text-center dark:bg-white/5 space-y-2 border border-zinc-200/50 dark:border-white/5">

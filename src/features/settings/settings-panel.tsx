@@ -455,9 +455,15 @@ export function SettingsPanel({ today, review }: Props) {
             />
           </div>
 
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 break-keep leading-relaxed">
-            좋아하는 메뉴를 등록하면 급식에 나오는 날 아침 맞춤 알림을 보내드립니다.
-          </p>
+          <div className="rounded-2xl border border-amber-300/80 bg-gradient-to-r from-yellow-50/80 to-amber-50/80 p-3 text-xs font-bold text-amber-900 dark:border-amber-800/40 dark:from-yellow-950/20 dark:to-amber-950/20 dark:text-amber-200 shadow-2xs space-y-1">
+            <div className="flex items-center gap-1.5 font-black text-amber-950 dark:text-amber-200">
+              <span>⚡</span>
+              <span>메시지 앱 스타일 빠른 평가 반응 (👍, ❤️, 👎, 🤢)</span>
+            </div>
+            <p className="text-2xs font-normal text-zinc-600 dark:text-zinc-400 break-keep leading-relaxed">
+              달력이나 홈 화면에서 메뉴를 직접 터치하면 메시지 앱처럼 플로팅 반응 팝업(👍, ❤️, 👎, 🤢)이 나타납니다. 특히 <span className="font-bold text-rose-600 dark:text-rose-400">하트(❤️)</span>를 선택하면 형광펜으로 그어지며 최애 메뉴로 등록되고, <span className="font-bold text-amber-700 dark:text-amber-300">전날 저녁(D-1)과 당일(D-DAY)</span>에 재치있는 메시지가 담긴 알림을 보내드립니다.
+            </p>
+          </div>
 
           {/* 키워드 직접 추가 입력창 */}
           <div className="flex gap-2">
@@ -467,7 +473,7 @@ export function SettingsPanel({ today, review }: Props) {
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleAddKeyword();
               }}
-              placeholder="예: 마라탕, 뿌링클, 꿔바로우"
+              placeholder="예: 마라탕, 뿌링클, 돈까스"
               className="h-10 text-sm"
             />
             <Button size="sm" onClick={handleAddKeyword} className="shrink-0 h-10 px-4 whitespace-nowrap font-bold cursor-pointer">
@@ -492,11 +498,11 @@ export function SettingsPanel({ today, review }: Props) {
                     className={cn(
                       "flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition cursor-pointer select-none active:scale-95 whitespace-nowrap shrink-0",
                       isSelected
-                        ? "bg-amber-500/20 text-amber-800 ring-1 ring-amber-400 dark:bg-amber-400/20 dark:text-amber-200 dark:ring-amber-500/50"
+                        ? "highlighter-mark ring-1 ring-yellow-400 dark:ring-yellow-400/80 scale-102"
                         : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-white/5 dark:text-zinc-400 dark:hover:bg-white/10",
                     )}
                   >
-                    <span>{isSelected ? "⭐" : "+"}</span>
+                    <span>{isSelected ? "❤️" : "+"}</span>
                     <span>{preset}</span>
                   </button>
                 );
@@ -508,7 +514,7 @@ export function SettingsPanel({ today, review }: Props) {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider whitespace-nowrap">
-                등록된 밥도둑 키워드 ({favoriteKeywords.length}개)
+                등록된 최애 메뉴/키워드 ({favoriteKeywords.length}개)
               </span>
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -516,14 +522,14 @@ export function SettingsPanel({ today, review }: Props) {
                 favoriteKeywords.map((kw) => (
                   <span
                     key={kw}
-                    className="flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500/15 to-orange-500/15 px-3 py-1 text-xs font-black text-amber-900 ring-1 ring-amber-300 dark:text-amber-200 dark:ring-amber-500/40 whitespace-nowrap shrink-0"
+                    className="flex items-center gap-1 rounded-full highlighter-mark px-3 py-1 text-xs font-black text-amber-950 dark:text-yellow-200 whitespace-nowrap shrink-0"
                   >
-                    <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
+                    <span className="text-xs">❤️</span>
                     <span>{kw}</span>
                     <button
                       type="button"
                       onClick={() => removeFavoriteKeyword(kw)}
-                      className="ml-0.5 rounded-full p-0.5 text-amber-700 hover:bg-amber-500/20 dark:text-amber-300 cursor-pointer"
+                      className="ml-0.5 rounded-full p-0.5 text-amber-800 hover:bg-yellow-400/40 dark:text-yellow-200 cursor-pointer"
                       aria-label={`${kw} 삭제`}
                     >
                       <X className="h-3 w-3" />
@@ -531,7 +537,7 @@ export function SettingsPanel({ today, review }: Props) {
                   </span>
                 ))
               ) : (
-                <p className="text-xs text-zinc-400">등록된 키워드가 없습니다. 위에서 추가해 보세요!</p>
+                <p className="text-xs text-zinc-400">등록된 메뉴가 없습니다. 달력에서 메뉴를 클릭하거나 직접 추가해 보세요!</p>
               )}
             </div>
           </div>
@@ -561,17 +567,30 @@ export function SettingsPanel({ today, review }: Props) {
             </div>
           )}
 
-          <Button
-            variant="secondary"
-            onClick={() => {
-              const firstKw = favoriteKeywords[0] || "치킨";
-              void sendTestKeywordNotification(firstKw, `${firstKw} 특식 세트`);
-            }}
-            className="w-full font-bold text-xs cursor-pointer"
-          >
-            <Bell className="h-3.5 w-3.5 mr-1.5" />
-            최애 메뉴 알림 테스트 발송
-          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                const firstKw = favoriteKeywords[0] || "치킨";
+                void sendTestKeywordNotification(firstKw, `${firstKw} 특식 세트`, "d-1");
+              }}
+              className="w-full font-bold text-2xs sm:text-xs cursor-pointer"
+            >
+              <Bell className="h-3.5 w-3.5 mr-1" />
+              전날(D-1) 알림 테스트
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                const firstKw = favoriteKeywords[0] || "치킨";
+                void sendTestKeywordNotification(firstKw, `${firstKw} 특식 세트`, "d-day");
+              }}
+              className="w-full font-bold text-2xs sm:text-xs cursor-pointer"
+            >
+              <Bell className="h-3.5 w-3.5 mr-1" />
+              당일(D-DAY) 알림 테스트
+            </Button>
+          </div>
         </Card>
 
         {/* 2-B: 알레르기 안심 알림 */}
