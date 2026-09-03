@@ -49,15 +49,6 @@ type Props = {
   review?: AiReview;
 };
 
-const THEME_COLORS = [
-  { color: "#0ea5e9", name: "스카이 블루" },
-  { color: "#10b981", name: "에메랄드 그린" },
-  { color: "#f43f5e", name: "로즈 핑크" },
-  { color: "#8b5cf6", name: "바이올렛 퍼플" },
-  { color: "#f59e0b", name: "앰버 오렌지" },
-  { color: "#f5f5f7", name: "클래식 실버" },
-];
-
 const POPULAR_KEYWORD_PRESETS = [
   "치킨",
   "돈까스",
@@ -726,7 +717,7 @@ export function SettingsPanel({ today, review }: Props) {
           </div>
         </div>
 
-        <Card className="space-y-4">
+        <Card>
           <div className="flex items-center justify-between rounded-2xl bg-white/60 p-4 dark:bg-white/10">
             <div className="flex items-center gap-2 font-bold text-sm">
               <Moon className="h-4 w-4 text-purple-500" />
@@ -736,34 +727,6 @@ export function SettingsPanel({ today, review }: Props) {
               checked={settings.darkMode}
               onCheckedChange={(darkMode) => updateSettings({ darkMode })}
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
-              포인트 테마 컬러
-            </Label>
-            <div className="grid grid-cols-6 gap-2">
-              {THEME_COLORS.map(({ color, name }) => {
-                const isSelected = settings.themeColor === color;
-                return (
-                  <button
-                    key={color}
-                    aria-label={`${name} 테마 선택`}
-                    title={name}
-                    onClick={() => updateSettings({ themeColor: color })}
-                    className="relative flex items-center justify-center h-12 rounded-2xl border border-zinc-200 dark:border-white/10 transition cursor-pointer select-none active:scale-95"
-                    style={{
-                      backgroundColor: color,
-                      boxShadow: isSelected ? `0 0 0 3px ${color}66` : undefined,
-                    }}
-                  >
-                    {isSelected && (
-                      <Check className="h-5 w-5 text-white drop-shadow stroke-[3]" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
           </div>
         </Card>
       </section>

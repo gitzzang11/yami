@@ -547,7 +547,7 @@ export function CalendarPanel() {
           {selectedMeal ? (
             <div className="space-y-4">
               {/* 급식 식단 카드 */}
-              <Card className="bg-[radial-gradient(circle_at_20%_20%,rgba(14,165,233,.1),transparent_30%)] p-4 overflow-visible">
+              <Card className="bg-[radial-gradient(circle_at_20%_20%,rgba(14,165,233,.1),transparent_30%)] dark:bg-none p-4 overflow-visible">
                 <div className="flex items-center justify-between mb-3 flex-wrap gap-1.5">
                   <CardTitle className="flex items-center gap-2 text-sm">
                     <Utensils className="h-4 w-4" />

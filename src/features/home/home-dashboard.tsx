@@ -319,7 +319,7 @@ export function HomeDashboard({
 
       {/* 오늘 급식 카드 */}
       <Card className="overflow-visible p-0">
-        <div className="bg-[radial-gradient(circle_at_20%_20%,rgba(14,165,233,.25),transparent_30%),radial-gradient(circle_at_80%_0%,rgba(244,63,94,.22),transparent_28%)] p-5 overflow-visible">
+        <div className="bg-[radial-gradient(circle_at_20%_20%,rgba(14,165,233,.25),transparent_30%),radial-gradient(circle_at_80%_0%,rgba(244,63,94,.22),transparent_28%)] dark:bg-none p-5 overflow-visible">
           <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <CardTitle className="flex items-center gap-2">
@@ -450,7 +450,7 @@ export function HomeDashboard({
             if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(20);
             void evaluate(selectedPersona);
           }}
-          className="w-full relative overflow-hidden rounded-[26px] bg-gradient-to-r from-[var(--theme)] via-sky-500 to-indigo-600 p-4 text-white shadow-xl shadow-[var(--theme)]/25 flex items-center justify-between gap-3 cursor-pointer group transition-all"
+          className="w-full relative overflow-hidden rounded-[26px] bg-gradient-to-r from-[var(--theme)] via-sky-500 to-indigo-600 p-4 text-white shadow-xl shadow-[var(--theme)]/25 dark:shadow-none flex items-center justify-between gap-3 cursor-pointer group transition-all"
         >
           <div className="flex items-center gap-3 text-left">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 text-2xl backdrop-blur-sm shadow-inner group-hover:rotate-6 transition-transform shrink-0">

@@ -51,10 +51,7 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", settings.darkMode);
-    document.documentElement.style.setProperty("--theme", settings.themeColor);
-  }, [settings.darkMode, settings.themeColor]);
-
-  const isLightSilverTheme = !settings.darkMode && settings.themeColor === "#f5f5f7";
+  }, [settings.darkMode]);
 
   useEffect(() => {
     if (!hasHydrated) return;
@@ -117,7 +114,7 @@ export default function App() {
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <div className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] left-1/2 z-30 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md">
                   <TabsList
-                    className="grid grid-cols-4 h-16 items-center gap-1 rounded-full p-1.5 relative border transition-colors duration-200 bg-white dark:bg-[#111318] border-zinc-200/90 dark:border-zinc-800/90 shadow-[0_12px_36px_-4px_rgba(15,23,42,0.12),0_4px_12px_-2px_rgba(15,23,42,0.06)] dark:shadow-[0_16px_44px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.08)]"
+                    className="grid grid-cols-4 h-16 items-center gap-1 rounded-full p-1.5 relative border transition-colors duration-200 bg-white dark:bg-[#111318] border-zinc-200/90 dark:border-zinc-800/90 shadow-[0_12px_36px_-4px_rgba(15,23,42,0.12),0_4px_12px_-2px_rgba(15,23,42,0.06)] dark:shadow-none"
                   >
                     <motion.div
                       className="active-tab-bg absolute w-[calc((100%-0.75rem)/4)]"
@@ -132,9 +129,7 @@ export default function App() {
                     >
                       <span className={`relative z-10 flex flex-col items-center gap-1 transition-all duration-200 ${
                         activeTab === "home"
-                          ? isLightSilverTheme
-                            ? "text-zinc-900 dark:text-theme-active font-black scale-105"
-                            : "text-white dark:text-theme-active font-black scale-105"
+                          ? "text-white font-black scale-105"
                           : "font-semibold"
                       }`}>
                         <Home className="h-4.5 w-4.5 shrink-0" />
@@ -147,9 +142,7 @@ export default function App() {
                     >
                       <span className={`relative z-10 flex flex-col items-center gap-1 transition-all duration-200 ${
                         activeTab === "calendar"
-                          ? isLightSilverTheme
-                            ? "text-zinc-900 dark:text-theme-active font-black scale-105"
-                            : "text-white dark:text-theme-active font-black scale-105"
+                          ? "text-white font-black scale-105"
                           : "font-semibold"
                       }`}>
                         <Calendar className="h-4.5 w-4.5 shrink-0" />
@@ -162,9 +155,7 @@ export default function App() {
                     >
                       <span className={`relative z-10 flex flex-col items-center gap-1 transition-all duration-200 ${
                         activeTab === "stats"
-                          ? isLightSilverTheme
-                            ? "text-zinc-900 dark:text-theme-active font-black scale-105"
-                            : "text-white dark:text-theme-active font-black scale-105"
+                          ? "text-white font-black scale-105"
                           : "font-semibold"
                       }`}>
                         <BarChart3 className="h-4.5 w-4.5 shrink-0" />
@@ -177,9 +168,7 @@ export default function App() {
                     >
                       <span className={`relative z-10 flex flex-col items-center gap-1 transition-all duration-200 ${
                         activeTab === "settings"
-                          ? isLightSilverTheme
-                            ? "text-zinc-900 dark:text-theme-active font-black scale-105"
-                            : "text-white dark:text-theme-active font-black scale-105"
+                          ? "text-white font-black scale-105"
                           : "font-semibold"
                       }`}>
                         <Settings className="h-4.5 w-4.5 shrink-0" />

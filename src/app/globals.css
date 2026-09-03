@@ -45,43 +45,32 @@ textarea {
 
 .bg-app {
   background:
-    radial-gradient(circle at 10% -10%, color-mix(in srgb, var(--theme) 28%, transparent), transparent 32rem),
-    radial-gradient(circle at 95% 5%, rgba(244, 63, 94, 0.18), transparent 28rem),
+    radial-gradient(circle at 10% -10%, rgba(14, 165, 233, 0.12), transparent 32rem),
+    radial-gradient(circle at 95% 5%, rgba(244, 63, 94, 0.08), transparent 28rem),
     linear-gradient(135deg, #f8fafc 0%, #eef2ff 42%, #f7fee7 100%);
 }
 
+/* 다크 모드: 빛/글로우 및 방사형 조명 완전 제거 (차분하고 매트한 솔리드 다크) */
 .dark .bg-app {
-  background:
-    radial-gradient(circle at 15% -5%, color-mix(in srgb, var(--theme) 24%, transparent), transparent 30rem),
-    radial-gradient(circle at 95% 0%, rgba(244, 63, 94, 0.16), transparent 26rem),
-    linear-gradient(135deg, #07080c 0%, #111827 50%, #0f172a 100%);
+  background: #090a0f;
 }
 
-/* 동적 테마 연동 및 탭바 스타일링 */
-.dark .text-theme-active {
-  color: var(--theme) !important;
-}
-
-/* 기본 모드 (Light Mode): 솔리드 화이트 바 + 선명한 테마 컬러 캡슐 */
+/* 기본 모드 (Light Mode): 솔리드 화이트 바 + 미드나잇 징크 캡슐 */
 .active-tab-bg {
   position: absolute;
   top: 6px;
   bottom: 6px;
   border-radius: 9999px;
-  background-color: var(--theme);
-  box-shadow: 
-    0 4px 14px color-mix(in srgb, var(--theme) 42%, transparent),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  background-color: #18181b;
+  box-shadow: 0 4px 12px rgba(24, 24, 27, 0.18);
   z-index: 0;
 }
 
-/* 다크 모드 (Dark Mode): 솔리드 딥 옵시디언 바 + 다크 티타늄 캡슐 & 네온 글로우 */
+/* 다크 모드 (Dark Mode): 솔리드 딥 옵시디언 바 + 다크 징크 캡슐 (빛/글로우 없음) */
 .dark .active-tab-bg {
-  background-color: #1a1d26;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 
-    0 0 18px color-mix(in srgb, var(--theme) 35%, transparent),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  background-color: #27272a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: none;
 }
 
 /* Recharts active bar stroke/outline removal overrides */
