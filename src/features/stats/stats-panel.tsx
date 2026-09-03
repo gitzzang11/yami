@@ -403,7 +403,7 @@ export function StatsPanel() {
                 <div
                   className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl text-sm font-black ${
                     index === 0
-                      ? "bg-amber-400 text-amber-950 shadow-sm ring-2 ring-amber-300"
+                      ? "bg-amber-400 text-amber-950 shadow-sm ring-2 ring-inset ring-amber-300"
                       : index === 1
                         ? "bg-zinc-300 text-zinc-900 dark:bg-zinc-700 dark:text-zinc-100"
                         : index === 2

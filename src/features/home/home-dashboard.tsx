@@ -478,7 +478,7 @@ export function HomeDashboard({
             <div className="flex items-center justify-between text-2xs font-black text-zinc-400 dark:text-zinc-500">
               <span>페르소나별 평가 기록 ({reviews.length}건)</span>
             </div>
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+            <div className="flex items-center gap-1.5 overflow-x-auto py-1.5 no-scrollbar">
               {reviews.map((r, idx) => {
                 const p = CRITIC_PERSONAS[r.persona || "student"];
                 const isCurrent = review?.id === r.id;
@@ -490,7 +490,7 @@ export function HomeDashboard({
                     onClick={() => onReview(r)}
                     className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black transition-all shrink-0 cursor-pointer ${
                       isCurrent
-                        ? "bg-zinc-950 text-white shadow-md dark:bg-white dark:text-zinc-950 ring-2 ring-[var(--theme)] scale-105"
+                        ? "bg-zinc-950 text-white shadow-md dark:bg-white dark:text-zinc-950 ring-2 ring-inset ring-[var(--theme)] scale-105"
                         : "bg-zinc-100/80 text-zinc-600 hover:bg-zinc-200 dark:bg-white/10 dark:text-zinc-300"
                     }`}
                   >
@@ -619,7 +619,7 @@ export function HomeDashboard({
                       key={r.id}
                       className={`flex items-center justify-between gap-3 rounded-2xl p-3 transition ${
                         isSelected
-                          ? "bg-zinc-100 dark:bg-white/15 ring-1.5 ring-[var(--theme)] shadow-xs"
+                          ? "bg-zinc-100 dark:bg-white/15 ring-1.5 ring-inset ring-[var(--theme)] shadow-xs"
                           : "bg-zinc-50 dark:bg-white/5 hover:bg-zinc-100/60 dark:hover:bg-white/10"
                       }`}
                     >
@@ -693,7 +693,7 @@ export function HomeDashboard({
                   onClick={() => setSelectedPersona(pId)}
                   className={`flex items-center justify-center gap-1 rounded-xl py-1.5 px-1.5 text-2xs font-black transition cursor-pointer whitespace-nowrap overflow-hidden ${
                     isSelected
-                      ? "bg-zinc-950 text-white shadow-sm dark:bg-white dark:text-zinc-950 ring-1 ring-[var(--theme)]"
+                      ? "bg-zinc-950 text-white shadow-sm dark:bg-white dark:text-zinc-950 ring-1.5 ring-inset ring-[var(--theme)]"
                       : "bg-zinc-100/80 text-zinc-600 hover:bg-zinc-200 dark:bg-white/5 dark:text-zinc-400 dark:hover:bg-white/10"
                   }`}
                 >

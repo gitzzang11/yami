@@ -386,7 +386,7 @@ export function CalendarPanel() {
                   handleNextMonth();
                 }
               }}
-              className="grid grid-cols-7 gap-1 touch-pan-y cursor-grab active:cursor-grabbing select-none"
+              className="grid grid-cols-7 gap-1 p-0.5 touch-pan-y cursor-grab active:cursor-grabbing select-none"
             >
               {days.map((day) => {
                 const dateStr = format(day, "yyyyMMdd");
@@ -419,9 +419,9 @@ export function CalendarPanel() {
                       if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(10);
                       setSelectedDate(day);
                     }}
-                    className={`relative flex flex-col items-center justify-between aspect-square p-1 rounded-2xl transition-all active:scale-90 cursor-pointer ${
+                    className={`relative flex flex-col items-center justify-between aspect-square p-1 rounded-xl transition-all active:scale-90 cursor-pointer ${
                       isSelected
-                        ? "ring-2 ring-[var(--theme)] bg-white/60 dark:bg-white/10 shadow-xs"
+                        ? "ring-2 ring-inset ring-[var(--theme)] bg-white/90 dark:bg-white/15 shadow-xs"
                         : "hover:bg-zinc-100/70 dark:hover:bg-white/5"
                     }`}
                   >
@@ -626,7 +626,7 @@ export function CalendarPanel() {
                             onClick={() => setActiveReviewId(r.id)}
                             className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-black transition-all shrink-0 cursor-pointer ${
                               isCurrent
-                                ? "bg-zinc-950 text-white shadow-sm dark:bg-white dark:text-zinc-950 ring-2 ring-[var(--theme)] scale-105"
+                                ? "bg-zinc-950 text-white shadow-sm dark:bg-white dark:text-zinc-950 ring-2 ring-inset ring-[var(--theme)] scale-105"
                                 : "bg-zinc-100/80 text-zinc-600 hover:bg-zinc-200 dark:bg-white/10 dark:text-zinc-300"
                             }`}
                           >
@@ -746,7 +746,7 @@ export function CalendarPanel() {
                               key={r.id}
                               className={`flex items-center justify-between gap-3 rounded-2xl p-2.5 transition ${
                                 isSelected
-                                  ? "bg-zinc-100 dark:bg-white/15 ring-1.5 ring-[var(--theme)] shadow-xs"
+                                  ? "bg-zinc-100 dark:bg-white/15 ring-1.5 ring-inset ring-[var(--theme)] shadow-xs"
                                   : "bg-zinc-50 dark:bg-white/5 hover:bg-zinc-100/60 dark:hover:bg-white/10"
                               }`}
                             >
@@ -819,7 +819,7 @@ export function CalendarPanel() {
                           onClick={() => setSelectedPersona(pId)}
                           className={`flex items-center justify-center gap-1 rounded-xl py-1.5 px-1.5 text-2xs font-black transition cursor-pointer whitespace-nowrap overflow-hidden ${
                             isSelected
-                              ? "bg-zinc-950 text-white shadow-sm dark:bg-white dark:text-zinc-950 ring-1 ring-[var(--theme)]"
+                              ? "bg-zinc-950 text-white shadow-sm dark:bg-white dark:text-zinc-950 ring-1.5 ring-inset ring-[var(--theme)]"
                               : "bg-zinc-100/80 text-zinc-600 hover:bg-zinc-200 dark:bg-white/5 dark:text-zinc-400 dark:hover:bg-white/10"
                           }`}
                         >

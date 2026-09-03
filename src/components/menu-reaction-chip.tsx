@@ -19,7 +19,7 @@ export const MENU_REACTIONS: MenuReactionConfig[] = [
     emoji: "👍",
     label: "따봉",
     pillClass:
-      "ring-1 ring-emerald-400 bg-emerald-50/90 text-emerald-950 dark:bg-emerald-950/50 dark:text-emerald-200 dark:ring-emerald-700 shadow-emerald-500/10",
+      "ring-1 ring-inset ring-emerald-400 bg-emerald-50/90 text-emerald-950 dark:bg-emerald-950/50 dark:text-emerald-200 dark:ring-emerald-700 shadow-emerald-500/10",
     toastType: "success",
     toastMessage: "따봉 반응 추가! 👍",
     toastSub: "오늘 이 메뉴 강력 추천!",
@@ -27,7 +27,7 @@ export const MENU_REACTIONS: MenuReactionConfig[] = [
   {
     emoji: "❤️",
     label: "하트 (최애)",
-    pillClass: "highlighter-mark ring-2 ring-yellow-400 dark:ring-yellow-400/80 scale-[1.02]",
+    pillClass: "highlighter-mark ring-2 ring-inset ring-yellow-400 dark:ring-yellow-400/80 scale-[1.02]",
     toastType: "heart",
     toastMessage: "최애 메뉴 등록 완료! ❤️",
     toastSub: "전날 저녁(D-1)과 당일에 재치있는 알림으로 알려드릴게요!",
@@ -36,7 +36,7 @@ export const MENU_REACTIONS: MenuReactionConfig[] = [
     emoji: "👎",
     label: "역따봉",
     pillClass:
-      "ring-1 ring-zinc-300 bg-zinc-100/90 text-zinc-600 dark:bg-zinc-800/70 dark:text-zinc-400 dark:ring-zinc-700 opacity-80",
+      "ring-1 ring-inset ring-zinc-300 bg-zinc-100/90 text-zinc-600 dark:bg-zinc-800/70 dark:text-zinc-400 dark:ring-zinc-700 opacity-80",
     toastType: "info",
     toastMessage: "역따봉 반응 추가! 👎",
     toastSub: "다음엔 더 맛있게 나오길 기대해봐요.",
@@ -45,7 +45,7 @@ export const MENU_REACTIONS: MenuReactionConfig[] = [
     emoji: "🤢",
     label: "웩",
     pillClass:
-      "ring-1 ring-emerald-400/70 bg-lime-50/90 text-lime-950 dark:bg-lime-950/40 dark:text-lime-200 dark:ring-lime-800 opacity-85",
+      "ring-1 ring-inset ring-emerald-400/70 bg-lime-50/90 text-lime-950 dark:bg-lime-950/40 dark:text-lime-200 dark:ring-lime-800 opacity-85",
     toastType: "info",
     toastMessage: "웩 반응 추가! 🤢",
     toastSub: "이 메뉴는 오늘 진짜 아니었어요...",
@@ -155,7 +155,7 @@ export function MenuReactionChip({
                   title={`${item.label} (${item.toastSub})`}
                   className={`relative flex h-8 w-8 items-center justify-center rounded-full text-base transition-colors cursor-pointer select-none ${
                     isSelected
-                      ? "bg-amber-100 ring-2 ring-amber-400 dark:bg-amber-950/60 dark:ring-amber-500 shadow-xs"
+                      ? "bg-amber-100 ring-2 ring-inset ring-amber-400 dark:bg-amber-950/60 dark:ring-amber-500 shadow-xs"
                       : "hover:bg-zinc-100 dark:hover:bg-white/10"
                   }`}
                 >
@@ -193,12 +193,12 @@ export function MenuReactionChip({
         title={name}
         className={`group relative flex items-center gap-1.5 rounded-full font-bold shadow-sm whitespace-nowrap cursor-pointer select-none transition-all ${sizeClasses} ${
           isHeart
-            ? "highlighter-mark ring-2 ring-yellow-400 dark:ring-yellow-400/80 scale-[1.02]"
+            ? "highlighter-mark ring-2 ring-inset ring-yellow-400 dark:ring-yellow-400/80 scale-[1.02]"
             : activeConfig
               ? activeConfig.pillClass
               : hasAllergyWarning
-                ? "bg-rose-100 text-rose-700 hover:bg-rose-200 dark:bg-rose-950/50 dark:text-rose-200 ring-1 ring-rose-300 dark:ring-rose-800"
-                : "bg-white/80 text-zinc-900 ring-1 ring-zinc-200/60 hover:bg-yellow-50/80 hover:text-amber-950 hover:ring-yellow-400/50 dark:bg-white/10 dark:text-white dark:ring-white/10 dark:hover:bg-yellow-400/15"
+                ? "bg-rose-100 text-rose-700 hover:bg-rose-200 dark:bg-rose-950/50 dark:text-rose-200 ring-1 ring-inset ring-rose-300 dark:ring-rose-800"
+                : "bg-white/80 text-zinc-900 ring-1 ring-inset ring-zinc-200/60 hover:bg-yellow-50/80 hover:text-amber-950 hover:ring-yellow-400/50 dark:bg-white/10 dark:text-white dark:ring-white/10 dark:hover:bg-yellow-400/15"
         }`}
       >
         {/* 이모티콘 또는 알레르기 아이콘 */}

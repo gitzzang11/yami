@@ -329,7 +329,7 @@ export function SettingsPanel({ today, review }: Props) {
                     className={cn(
                       "flex flex-col text-left p-3.5 rounded-2xl border transition cursor-pointer relative",
                       isSelected
-                        ? "border-[var(--theme)] bg-[var(--theme)]/10 ring-2 ring-[var(--theme)] dark:bg-white/10"
+                        ? "border-[var(--theme)] bg-[var(--theme)]/10 ring-2 ring-inset ring-[var(--theme)] dark:bg-white/10"
                         : "border-zinc-200/70 bg-white/40 hover:bg-zinc-50 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/8",
                     )}
                   >
@@ -606,7 +606,7 @@ export function SettingsPanel({ today, review }: Props) {
                   className={cn(
                     "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition cursor-pointer select-none active:scale-95 whitespace-nowrap shrink-0",
                     isChecked
-                      ? "bg-[var(--theme)] text-white shadow-sm ring-1 ring-[var(--theme)]"
+                      ? "bg-[var(--theme)] text-white shadow-sm ring-1 ring-inset ring-[var(--theme)]"
                       : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15",
                   )}
                 >
