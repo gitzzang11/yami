@@ -7,6 +7,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.util.Log;
 import android.view.View;
 import android.widget.RemoteViews;
 
@@ -16,17 +17,30 @@ import java.util.List;
 
 public class MealWidgetProvider extends AppWidgetProvider {
 
+    private static final String TAG = "MealWidgetProvider";
     public static final String PREFS_NAME = "MealWidgetPrefs";
 
     @Override
+    public void onEnabled(Context context) {
+        super.onEnabled(context);
+        updateAllWidgets(context);
+    }
+
+    @Override
     public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
+        if (appWidgetIds == null) return;
         for (int appWidgetId : appWidgetIds) {
-            updateAppWidget(context, appWidgetManager, appWidgetId);
+            try {
+                updateAppWidget(context, appWidgetManager, appWidgetId);
+            } catch (Exception e) {
+                Log.e(TAG, "Error updating appWidgetId=" + appWidgetId, e);
+            }
         }
     }
 
     public static void updateAppWidget(Context context, AppWidgetManager appWidgetManager, int appWidgetId) {
-        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        try {
+            SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
 
         String schoolName = prefs.getString("schoolName", "학교 미설정");
         String mealKind = prefs.getString("mealKind", "오늘 급식");
@@ -126,6 +140,9 @@ public class MealWidgetProvider extends AppWidgetProvider {
         views.setOnClickPendingIntent(R.id.widget_root, pendingIntent);
 
         appWidgetManager.updateAppWidget(appWidgetId, views);
+        } catch (Exception e) {
+            Log.e(TAG, "Exception in updateAppWidget id=" + appWidgetId, e);
+        }
     }
 
     public static void updateAllWidgets(Context context) {

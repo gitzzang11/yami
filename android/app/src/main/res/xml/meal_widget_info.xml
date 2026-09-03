@@ -6,8 +6,8 @@
     android:targetCellHeight="2"
     android:updatePeriodMillis="3600000"
     android:initialLayout="@layout/meal_widget"
+    android:previewLayout="@layout/meal_widget"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
-    android:description="@string/widget_description"
-    android:previewImage="@mipmap/ic_launcher">
+    android:description="@string/widget_description">
 </appwidget-provider>

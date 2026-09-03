@@ -886,7 +886,7 @@ export function SettingsPanel({ today, review }: Props) {
               <div className="font-black text-sm text-zinc-900 dark:text-white flex items-center gap-1.5">
                 <span>급식평론가 (Yami)</span>
                 <span className="rounded-md bg-[var(--theme)]/15 px-1.5 py-0.5 text-[10px] font-black text-[var(--theme)]">
-                  v1.5.1
+                  v1.5.2
                 </span>
               </div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
@@ -901,7 +901,7 @@ export function SettingsPanel({ today, review }: Props) {
           <div className="pt-2 border-t border-zinc-200/60 dark:border-zinc-800 flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
             <span>릴리스 노트 & 오픈소스</span>
             <a
-              href="https://github.com/gitzzang11/yami/releases/tag/v1.5.1"
+              href="https://github.com/gitzzang11/yami/releases/tag/v1.5.2"
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1 font-bold text-[var(--theme)] hover:underline cursor-pointer"
