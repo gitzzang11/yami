@@ -13,6 +13,7 @@ import { useMealData } from "@/hooks/use-meal-data";
 import { usePwa } from "@/hooks/use-pwa";
 import { useAppStore } from "@/stores/app-store";
 import { scheduleDailyMealNotification, disableMealNotification, scheduleKeywordMealNotifications } from "@/services/notifications";
+import { syncMealWidget } from "@/services/widget";
 import { NotificationToast } from "@/components/ui/toast";
 
 export default function App() {
@@ -72,6 +73,13 @@ export default function App() {
         settings.favoriteKeywords ?? [],
         settings.selectedSchool.schoolCode,
       ).catch((err) => console.error("최애 메뉴 키워드 알림 갱신 실패", err));
+    }
+
+    // Android 홈 화면 위젯 실시간 동기화
+    if (settings.selectedSchool) {
+      syncMealWidget(settings.selectedSchool, today, settings.favoriteKeywords ?? []).catch((err) =>
+        console.warn("홈 화면 위젯 갱신 실패 (무시 가능)", err),
+      );
     }
   }, [
     hasHydrated,
