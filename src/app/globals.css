@@ -62,21 +62,26 @@ textarea {
   color: var(--theme) !important;
 }
 
+/* 기본 모드 (Light Mode): 솔리드 화이트 바 + 선명한 테마 컬러 캡슐 */
 .active-tab-bg {
   position: absolute;
   top: 6px;
   bottom: 6px;
   border-radius: 9999px;
-  background-color: rgba(255, 255, 255, 0.15);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background-color: var(--theme);
+  box-shadow: 
+    0 4px 14px color-mix(in srgb, var(--theme) 42%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
   z-index: 0;
 }
 
+/* 다크 모드 (Dark Mode): 솔리드 딥 옵시디언 바 + 다크 티타늄 캡슐 & 네온 글로우 */
 .dark .active-tab-bg {
-  background-color: rgba(255, 255, 255, 0.12);
+  background-color: #1a1d26;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 
-    0 0 14px color-mix(in srgb, var(--theme) 35%, transparent),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    0 0 18px color-mix(in srgb, var(--theme) 35%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
 /* Recharts active bar stroke/outline removal overrides */

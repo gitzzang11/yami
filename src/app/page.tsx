@@ -54,6 +54,8 @@ export default function App() {
     document.documentElement.style.setProperty("--theme", settings.themeColor);
   }, [settings.darkMode, settings.themeColor]);
 
+  const isLightSilverTheme = !settings.darkMode && settings.themeColor === "#f5f5f7";
+
   useEffect(() => {
     if (!hasHydrated) return;
     if (settings.notificationsEnabled) {
@@ -115,53 +117,73 @@ export default function App() {
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <div className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] left-1/2 z-30 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md">
                   <TabsList
-                    className="grid grid-cols-4 h-16 items-center gap-1 rounded-full border border-white/15 dark:border-white/15 bg-zinc-900/60 dark:bg-black/40 p-1.5 text-white shadow-[0_8px_32px_rgba(0,0,0,0.37)] dark:shadow-[0_16px_48px_-8px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.15)] relative"
-                    style={{
-                      backdropFilter: "blur(20px)",
-                      WebkitBackdropFilter: "blur(20px)",
-                    }}
+                    className="grid grid-cols-4 h-16 items-center gap-1 rounded-full p-1.5 relative border transition-colors duration-200 bg-white dark:bg-[#111318] border-zinc-200/90 dark:border-zinc-800/90 shadow-[0_12px_36px_-4px_rgba(15,23,42,0.12),0_4px_12px_-2px_rgba(15,23,42,0.06)] dark:shadow-[0_16px_44px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.08)]"
                   >
                     <motion.div
                       className="active-tab-bg absolute w-[calc((100%-0.75rem)/4)]"
                       animate={{
                         left: `calc(0.375rem + (100% - 0.75rem) / 4 * ${activeIndex})`
                       }}
-                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                      transition={{ type: "spring", stiffness: 420, damping: 32 }}
                     />
                     <TabsTrigger
                       value="home"
-                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative whitespace-nowrap"
+                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors duration-200 select-none cursor-pointer relative whitespace-nowrap"
                     >
-                      <span className={`relative z-10 flex flex-col items-center gap-1 transition-colors ${activeTab === "home" ? "text-white dark:text-theme-active" : ""}`}>
+                      <span className={`relative z-10 flex flex-col items-center gap-1 transition-all duration-200 ${
+                        activeTab === "home"
+                          ? isLightSilverTheme
+                            ? "text-zinc-900 dark:text-theme-active font-black scale-105"
+                            : "text-white dark:text-theme-active font-black scale-105"
+                          : "font-semibold"
+                      }`}>
                         <Home className="h-4.5 w-4.5 shrink-0" />
-                        <span className="text-[10px] font-bold whitespace-nowrap">홈</span>
+                        <span className="text-[10px] tracking-tight whitespace-nowrap">홈</span>
                       </span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="calendar"
-                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative whitespace-nowrap"
+                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors duration-200 select-none cursor-pointer relative whitespace-nowrap"
                     >
-                      <span className={`relative z-10 flex flex-col items-center gap-1 transition-colors ${activeTab === "calendar" ? "text-white dark:text-theme-active" : ""}`}>
+                      <span className={`relative z-10 flex flex-col items-center gap-1 transition-all duration-200 ${
+                        activeTab === "calendar"
+                          ? isLightSilverTheme
+                            ? "text-zinc-900 dark:text-theme-active font-black scale-105"
+                            : "text-white dark:text-theme-active font-black scale-105"
+                          : "font-semibold"
+                      }`}>
                         <Calendar className="h-4.5 w-4.5 shrink-0" />
-                        <span className="text-[10px] font-bold whitespace-nowrap">달력</span>
+                        <span className="text-[10px] tracking-tight whitespace-nowrap">달력</span>
                       </span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="stats"
-                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative whitespace-nowrap"
+                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors duration-200 select-none cursor-pointer relative whitespace-nowrap"
                     >
-                      <span className={`relative z-10 flex flex-col items-center gap-1 transition-colors ${activeTab === "stats" ? "text-white dark:text-theme-active" : ""}`}>
+                      <span className={`relative z-10 flex flex-col items-center gap-1 transition-all duration-200 ${
+                        activeTab === "stats"
+                          ? isLightSilverTheme
+                            ? "text-zinc-900 dark:text-theme-active font-black scale-105"
+                            : "text-white dark:text-theme-active font-black scale-105"
+                          : "font-semibold"
+                      }`}>
                         <BarChart3 className="h-4.5 w-4.5 shrink-0" />
-                        <span className="text-[10px] font-bold whitespace-nowrap">통계</span>
+                        <span className="text-[10px] tracking-tight whitespace-nowrap">통계</span>
                       </span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="settings"
-                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-400 transition-colors duration-200 select-none cursor-pointer relative whitespace-nowrap"
+                      className="flex flex-col items-center justify-center gap-1 rounded-full h-full text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors duration-200 select-none cursor-pointer relative whitespace-nowrap"
                     >
-                      <span className={`relative z-10 flex flex-col items-center gap-1 transition-colors ${activeTab === "settings" ? "text-white dark:text-theme-active" : ""}`}>
+                      <span className={`relative z-10 flex flex-col items-center gap-1 transition-all duration-200 ${
+                        activeTab === "settings"
+                          ? isLightSilverTheme
+                            ? "text-zinc-900 dark:text-theme-active font-black scale-105"
+                            : "text-white dark:text-theme-active font-black scale-105"
+                          : "font-semibold"
+                      }`}>
                         <Settings className="h-4.5 w-4.5 shrink-0" />
-                        <span className="text-[10px] font-bold whitespace-nowrap">설정</span>
+                        <span className="text-[10px] tracking-tight whitespace-nowrap">설정</span>
                       </span>
                     </TabsTrigger>
                   </TabsList>
