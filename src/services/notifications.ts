@@ -220,7 +220,7 @@ export async function scheduleDailyMealNotification(
       title,
       body,
       schedule: { at: scheduleTime, allowWhileIdle: true },
-      smallIcon: "ic_stat_icon_config_sample",
+      smallIcon: "ic_stat_yami",
     });
   }
 
@@ -406,7 +406,7 @@ export async function scheduleKeywordMealNotifications(
             title: d1Title,
             body: d1Body,
             schedule: { at: dMinus1Date, allowWhileIdle: true },
-            smallIcon: "ic_stat_icon_config_sample",
+            smallIcon: "ic_stat_yami",
           });
         }
 
@@ -423,7 +423,7 @@ export async function scheduleKeywordMealNotifications(
             title: dDayTitle,
             body: dDayBody,
             schedule: { at: targetDate, allowWhileIdle: true },
-            smallIcon: "ic_stat_icon_config_sample",
+            smallIcon: "ic_stat_yami",
           });
         }
       }
