@@ -118,9 +118,13 @@ export async function getMealsByRange(
       },
     );
     const meals = (data.mealServiceDietInfo?.[1]?.row ?? []).map((row) => toMeal(row, school));
-    if (meals.length > 0) {
-      await db.meals.bulkPut(meals);
-    }
+    // 미제공/취소된 급식이 캐시에 남아 알림으로 예약되지 않도록 조회 범위를 교체한다.
+    await db.transaction("rw", db.meals, async () => {
+      await db.meals.where("[schoolCode+date]")
+        .between([school.schoolCode, start], [school.schoolCode, end], true, true)
+        .delete();
+      if (meals.length > 0) await db.meals.bulkPut(meals);
+    });
     const filtered = kind ? meals.filter((meal) => meal.kind === kind) : meals;
     return filtered.sort((a, b) => a.date.localeCompare(b.date));
   } catch (error) {

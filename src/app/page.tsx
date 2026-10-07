@@ -61,23 +61,24 @@ export default function App() {
   useEffect(() => {
     if (!hasHydrated) return;
     if (settings.notificationsEnabled) {
-      scheduleDailyMealNotification(settings.notificationTime, today, review).catch((err) =>
+      scheduleDailyMealNotification(settings.notificationTime, today, review, {
+        schoolCode: settings.selectedSchool?.schoolCode,
+        mealKind,
+      }).catch((err) =>
         console.error("자동 알림 갱신 실패", err),
       );
     } else {
-      // 알림이 꺼진 상태에서도 혹시 남아있는 예약 알림을 확실히 취소
+      // 일일 알림이 꺼져 있으면 해당 예약만 취소한다.
       disableMealNotification().catch((err) =>
         console.error("알림 잔여 취소 실패", err),
       );
     }
 
-    if (settings.keywordNotificationsEnabled && settings.selectedSchool) {
-      scheduleKeywordMealNotifications(
-        settings.notificationTime,
-        settings.favoriteKeywords ?? [],
-        settings.selectedSchool.schoolCode,
-      ).catch((err) => console.error("최애 메뉴 키워드 알림 갱신 실패", err));
-    }
+    scheduleKeywordMealNotifications(
+      settings.notificationTime,
+      settings.keywordNotificationsEnabled ? settings.favoriteKeywords ?? [] : [],
+      settings.selectedSchool?.schoolCode,
+    ).catch((err) => console.error("최애 메뉴 키워드 알림 갱신 실패", err));
 
     // Android 홈 화면 위젯 실시간 동기화
     if (settings.selectedSchool) {
@@ -92,6 +93,8 @@ export default function App() {
     settings.notificationTime,
     settings.favoriteKeywords,
     settings.selectedSchool,
+    mealKind,
+    week,
     today,
     review,
   ]);

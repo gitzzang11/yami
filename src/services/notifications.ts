@@ -5,7 +5,7 @@ import { Capacitor } from "@capacitor/core";
 import { addDays } from "date-fns";
 import { db } from "@/db/app-db";
 import { yyyymmdd } from "@/lib/utils";
-import type { AiReview, Meal } from "@/types";
+import type { AiReview, Meal, MealKind } from "@/types";
 
 export async function requestNotificationPermission() {
   if (!Capacitor.isNativePlatform()) {
@@ -42,20 +42,26 @@ export function isHoliday(date: Date): boolean {
     return true;
   }
 
+  // 2026년부터 공휴일로 지정된 노동절과 제헌절.
+  // https://www.kasa.go.kr/prog/plcyBrf/brief/kor/sub01_01_04/view.do?plcyBrfNo=431
+  if (year >= 2026 && (mmdd === "0501" || mmdd === "0717")) return true;
+
   // 2. 대체공휴일 및 음력 공휴일 (2026년, 2027년 수동 매핑)
   const variableHolidays = [
     // 2026년
     "20260216", "20260217", "20260218", // 설날 연휴
     "20260302", // 삼일절 대체공휴일
-    "20260525", // 부처님오신날 대체공휴일 (부처님오신날: 5월 24일 일요일)
+    "20260524", "20260525", // 부처님오신날 및 대체공휴일
+    "20260603", // 전국동시지방선거일
     "20260817", // 광복절 대체공휴일 (광복절: 8월 15일 토요일)
-    "20260924", "20260925", "20260926", "20260928", // 추석 연휴 및 대체공휴일
+    "20260924", "20260925", "20260926", // 추석 연휴
     "20261005", // 개천절 대체공휴일 (개천절: 10월 3일 토요일)
     
     // 2027년
-    "20270205", "20270206", "20270207", "20270208", // 설날 연휴 및 대체공휴일
+    "20270206", "20270207", "20270208", "20270209", // 설날 연휴 및 대체공휴일
+    "20270503", // 노동절 대체공휴일
     "20270513", // 부처님오신날 (5월 13일 목요일)
-    "20270607", // 현충일 대체공휴일 (현충일: 6월 6일 일요일)
+    "20270719", // 제헌절 대체공휴일
     "20270816", // 광복절 대체공휴일 (광복절: 8월 15일 일요일)
     "20270914", "20270915", "20270916", // 추석 연휴
     "20271004", // 개천절 대체공휴일 (개천절: 10월 3일 일요일)
@@ -94,77 +100,114 @@ export function formatNotificationContent(
   return { title, body };
 }
 
-export async function scheduleDailyMealNotification(
+type MealNotificationContext = { schoolCode?: string; mealKind: MealKind };
+const KEYWORD_D_MINUS_1_ID = 100000000;
+const KEYWORD_D_DAY_ID = 200000000;
+let notificationUpdate = Promise.resolve();
+
+// 네이티브 예약 중 다음 갱신이 취소를 먼저 수행하면 오래된 예약이 다시 남는다.
+function enqueueNotificationUpdate(update: () => Promise<void>): Promise<void> {
+  const task = notificationUpdate.then(update);
+  notificationUpdate = task.catch(() => {});
+  return task;
+}
+
+function isKeywordNotification(notification: { id: number; title?: string }): boolean {
+  return (notification.id >= KEYWORD_D_MINUS_1_ID && notification.id < 300000000)
+    || (notification.id >= 10000000 && notification.id < 30000000
+      && (notification.title?.includes("[D-1]") === true || notification.title?.includes("[D-DAY]") === true));
+}
+
+async function cancelDailyMealNotifications() {
+  const pending = await LocalNotifications.getPending();
+  const daily = pending.notifications.filter((notification) => notification.id === 1001
+    || (notification.id >= 20000000 && notification.id < 30000000 && !isKeywordNotification(notification)));
+  if (daily.length > 0) {
+    await LocalNotifications.cancel({ notifications: daily.map((notification) => ({ id: notification.id })) });
+  }
+}
+
+function isSchoolDay(date: Date): boolean {
+  return date.getDay() !== 0 && date.getDay() !== 6 && !isHoliday(date);
+}
+
+function matchesMealDate(meal: Meal | undefined, date: string, context: MealNotificationContext): meal is Meal {
+  return !!meal && meal.date === date && meal.schoolCode === context.schoolCode && meal.kind === context.mealKind;
+}
+
+async function getNotificationMeal(date: string, context: MealNotificationContext, supplied?: Meal): Promise<Meal | undefined> {
+  if (!context.schoolCode) return undefined;
+  if (matchesMealDate(supplied, date, context)) return supplied;
+  try {
+    return await db.meals.where("[schoolCode+date+kind]").equals([context.schoolCode, date, context.mealKind]).first();
+  } catch (e) {
+    console.error(`${date} 알림 급식 로드 실패`, e);
+    return undefined;
+  }
+}
+
+function hasMealMenu(meal: Meal | undefined): meal is Meal {
+  return !!meal?.menu?.some((item) => item.trim().length > 0);
+}
+
+async function getNotificationReview(meal: Meal, supplied?: AiReview): Promise<AiReview | undefined> {
+  if (supplied?.mealId === meal.id) return supplied;
+  try {
+    return await db.reviews.where("mealId").equals(meal.id).last();
+  } catch (e) {
+    console.error(`${meal.date} 알림 평가 로드 실패`, e);
+    return undefined;
+  }
+}
+
+export function scheduleDailyMealNotification(
   time: string,
   meal?: Meal,
   review?: AiReview,
+  context: MealNotificationContext = { schoolCode: meal?.schoolCode, mealKind: meal?.kind ?? "lunch" },
+) {
+  return enqueueNotificationUpdate(() => updateDailyMealNotification(time, meal, review, context));
+}
+
+async function updateDailyMealNotification(
+  time: string,
+  meal: Meal | undefined,
+  review: AiReview | undefined,
+  context: MealNotificationContext,
 ) {
   const [hour, minute] = time.split(":").map(Number);
+  const now = new Date();
 
-  // 1. 웹 브라우저 등 비네이티브 환경: 즉각적 1회성 알림만 전송하고 스케줄링 생략
   if (!Capacitor.isNativePlatform()) {
-    let finalMeal = meal;
-    let finalReview = review;
-    if (!finalMeal) {
-      try {
-        const todayStr = yyyymmdd(new Date());
-        const cachedMeal = await db.meals.where("date").equals(todayStr).first();
-        if (cachedMeal) {
-          finalMeal = cachedMeal;
-          const cachedReview = await db.reviews.where("mealId").equals(cachedMeal.id).last();
-          if (cachedReview) {
-            finalReview = cachedReview;
-          }
-        } else {
-          const allMeals = await db.meals.toArray();
-          if (allMeals.length > 0) {
-            const todayNum = Number(todayStr);
-            allMeals.sort((a, b) => {
-              const diffA = Math.abs(Number(a.date) - todayNum);
-              const diffB = Math.abs(Number(b.date) - todayNum);
-              return diffA - diffB;
-            });
-            const nearestMeal = allMeals[0];
-            finalMeal = nearestMeal;
-            const cachedReview = await db.reviews.where("mealId").equals(nearestMeal.id).last();
-            if (cachedReview) {
-              finalReview = cachedReview;
-            }
-          }
-        }
-      } catch (e) {
-        console.error("웹 알림 폴백 조회 실패", e);
-      }
-    }
-    const { title, body } = formatNotificationContent(finalMeal, finalReview);
-
+    if (!context.schoolCode || !isSchoolDay(now)) return;
+    const currentMeal = await getNotificationMeal(yyyymmdd(now), context, meal);
+    if (!hasMealMenu(currentMeal)) return;
+    const currentReview = await getNotificationReview(currentMeal, review);
+    const { title, body } = formatNotificationContent(currentMeal, currentReview);
     if ("serviceWorker" in navigator && "Notification" in window && Notification.permission === "granted") {
       new Notification(title, { body, icon: "/icons/icon-192.png" });
     }
     return;
   }
 
-  // 2. 모바일 네이티브 환경 (Capacitor)
-  // 대기 중인 모든 이전 예약 건을 확실하게 제거하여 누적이나 오작동 방지
+  // 급식 없는 날에 남아 있는 이전 예약도 먼저 해제한다.
   try {
-    const pending = await LocalNotifications.getPending();
-    if (pending.notifications.length > 0) {
-      await LocalNotifications.cancel({ notifications: pending.notifications.map((n) => ({ id: n.id })) });
-    }
+    await cancelDailyMealNotifications();
   } catch (e) {
     console.error("기존 알림 스케줄 해제 실패", e);
   }
+
+  if (!context.schoolCode) return;
 
   const notificationsToSchedule = [];
 
   // 향후 7일 간의 알림을 개별 예약
   for (let i = 0; i < 7; i++) {
-    const targetDate = addDays(new Date(), i);
+    const targetDate = addDays(now, i);
     const dateStr = yyyymmdd(targetDate);
     
     // 주말(토요일/일요일)이거나 법정 공휴일인 경우는 알림을 예약하지 않고 스킵
-    const day = targetDate.getDay();
-    if (day === 0 || day === 6 || isHoliday(targetDate)) {
+    if (!isSchoolDay(targetDate)) {
       continue;
     }
 
@@ -176,42 +219,9 @@ export async function scheduleDailyMealNotification(
       continue;
     }
 
-    let currentMeal: Meal | undefined = undefined;
-    let currentReview: AiReview | undefined = undefined;
-
-    if (i === 0 && meal) {
-      currentMeal = meal;
-      currentReview = review;
-    } else {
-      try {
-        currentMeal = await db.meals.where("date").equals(dateStr).first();
-        if (currentMeal) {
-          currentReview = await db.reviews.where("mealId").equals(currentMeal.id).last();
-        }
-      } catch (e) {
-        console.error(`${dateStr} 급식 로드 실패`, e);
-      }
-    }
-
-    // 만약 해당 날짜의 급식 정보가 부재할 경우, DB에서 가장 가까운 날짜의 급식을 폴백으로 매핑
-    if (!currentMeal) {
-      try {
-        const allMeals = await db.meals.toArray();
-        if (allMeals.length > 0) {
-          const targetNum = Number(dateStr);
-          allMeals.sort((a, b) => {
-            const diffA = Math.abs(Number(a.date) - targetNum);
-            const diffB = Math.abs(Number(b.date) - targetNum);
-            return diffA - diffB;
-          });
-          const nearestMeal = allMeals[0];
-          currentMeal = nearestMeal;
-          currentReview = await db.reviews.where("mealId").equals(nearestMeal.id).last();
-        }
-      } catch (e) {
-        console.error("폴백 급식 로드 실패", e);
-      }
-    }
+    const currentMeal = await getNotificationMeal(dateStr, context, meal);
+    if (!hasMealMenu(currentMeal)) continue;
+    const currentReview = await getNotificationReview(currentMeal, review);
 
     const { title, body } = formatNotificationContent(currentMeal, currentReview);
 
@@ -235,18 +245,16 @@ export async function scheduleDailyMealNotification(
   }
 }
 
-export async function disableMealNotification() {
-  if (Capacitor.isNativePlatform()) {
-    try {
-      // 예약된 알림 전체를 취소 (날짜 기반 ID 포함)
-      const pending = await LocalNotifications.getPending();
-      if (pending.notifications.length > 0) {
-        await LocalNotifications.cancel({ notifications: pending.notifications.map((n) => ({ id: n.id })) });
+export function disableMealNotification() {
+  return enqueueNotificationUpdate(async () => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        await cancelDailyMealNotifications();
+      } catch (e) {
+        console.error("일일 급식 알림 해제 실패", e);
       }
-    } catch (e) {
-      console.error("알림 전체 해제 실패", e);
     }
-  }
+  });
 }
 
 export async function sendTestNotification(meal?: Meal, review?: AiReview) {
@@ -337,27 +345,34 @@ export function getFavoriteDDayMessage(
   return { title, body };
 }
 
-export async function scheduleKeywordMealNotifications(
+export function scheduleKeywordMealNotifications(
   time: string,
   keywords: string[],
   schoolCode?: string,
 ) {
-  if (!keywords || keywords.length === 0 || !schoolCode) return;
+  return enqueueNotificationUpdate(() => updateKeywordMealNotifications(time, keywords, schoolCode));
+}
+
+async function updateKeywordMealNotifications(
+  time: string,
+  keywords: string[],
+  schoolCode?: string,
+) {
   const [hour, minute] = time.split(":").map(Number);
 
   if (!Capacitor.isNativePlatform()) return;
 
   try {
-    // 기존 키워드 알림 ID(10000000 ~ 29999999) 취소
+    // 이전 버전의 예약도 제거하되 일일 급식 알림은 유지한다.
     const pending = await LocalNotifications.getPending();
-    const keywordPending = pending.notifications.filter(
-      (n) => n.id >= 10000000 && n.id < 30000000,
-    );
+    const keywordPending = pending.notifications.filter(isKeywordNotification);
     if (keywordPending.length > 0) {
       await LocalNotifications.cancel({
         notifications: keywordPending.map((n) => ({ id: n.id })),
       });
     }
+
+    if (!keywords || keywords.length === 0 || !schoolCode) return;
 
     const today = new Date();
     const startStr = yyyymmdd(today);
@@ -370,6 +385,7 @@ export async function scheduleKeywordMealNotifications(
       .toArray();
 
     const notificationsToSchedule = [];
+    const mealDates = new Set(upcomingMeals.filter(hasMealMenu).map((meal) => meal.date));
 
     for (const meal of upcomingMeals) {
       const year = Number(meal.date.slice(0, 4));
@@ -378,8 +394,7 @@ export async function scheduleKeywordMealNotifications(
       const targetDate = new Date(year, month, day, hour, minute, 0, 0);
 
       // 주말이나 공휴일 급식은 스킵
-      const dayOfWeek = targetDate.getDay();
-      if (dayOfWeek === 0 || dayOfWeek === 6 || isHoliday(targetDate)) continue;
+      if (!isSchoolDay(targetDate) || !hasMealMenu(meal)) continue;
 
       const matchedMenus = meal.menu.filter((m) =>
         keywords.some((k) => m.toLowerCase().includes(k.toLowerCase())),
@@ -394,7 +409,8 @@ export async function scheduleKeywordMealNotifications(
 
         // 1. 📢 전날 (D-1) 저녁 알림 (저녁 19:30 예약)
         const dMinus1Date = new Date(year, month, day - 1, 19, 30, 0, 0);
-        if (dMinus1Date.getTime() > Date.now()) {
+        if (dMinus1Date.getTime() > Date.now() && isSchoolDay(dMinus1Date)
+          && mealDates.has(yyyymmdd(dMinus1Date))) {
           const { title: d1Title, body: d1Body } = getFavoriteDMinus1Message(
             firstKeyword,
             matchedMenus,
@@ -402,7 +418,7 @@ export async function scheduleKeywordMealNotifications(
             meal.menu,
           );
           notificationsToSchedule.push({
-            id: 10000000 + numericDate,
+            id: KEYWORD_D_MINUS_1_ID + numericDate,
             title: d1Title,
             body: d1Body,
             schedule: { at: dMinus1Date, allowWhileIdle: true },
@@ -419,7 +435,7 @@ export async function scheduleKeywordMealNotifications(
             meal.menu,
           );
           notificationsToSchedule.push({
-            id: 20000000 + numericDate,
+            id: KEYWORD_D_DAY_ID + numericDate,
             title: dDayTitle,
             body: dDayBody,
             schedule: { at: targetDate, allowWhileIdle: true },

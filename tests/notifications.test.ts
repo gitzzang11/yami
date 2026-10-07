@@ -37,6 +37,19 @@ describe("Notifications & Holiday Logic Tests", () => {
     expect(isHoliday(new Date(2026, 8, 1))).toBe(false);
   });
 
+  it.each([
+    [2026, 5, 1], [2026, 5, 24], [2026, 6, 3], [2026, 7, 17],
+    [2027, 2, 9], [2027, 5, 3], [2027, 7, 19],
+  ])("recognizes the official holiday on %i-%i-%i", (year, month, day) => {
+    expect(isHoliday(new Date(year, month - 1, day))).toBe(true);
+  });
+
+  it.each([[2026, 9, 28], [2027, 2, 5], [2027, 6, 7], [2025, 5, 1], [2025, 7, 17]])(
+    "does not classify a regular day as a holiday on %i-%i-%i", (year, month, day) => {
+      expect(isHoliday(new Date(year, month - 1, day))).toBe(false);
+    },
+  );
+
   it("should format notification with complete meal menu without cutting off after 4 items", () => {
     const fullMeal: Meal = {
       id: "meal-1",

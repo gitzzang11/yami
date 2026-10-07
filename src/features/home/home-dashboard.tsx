@@ -183,7 +183,10 @@ export function HomeDashboard({
       );
       onReview(result);
       if (settings.notificationsEnabled) {
-        await scheduleDailyMealNotification(settings.notificationTime, today, result);
+        await scheduleDailyMealNotification(settings.notificationTime, today, result, {
+          schoolCode: school.schoolCode,
+          mealKind,
+        });
       }
     } catch (err) {
       setEvalError(err instanceof Error ? err.message : "AI 평가 중 오류가 발생했습니다.");

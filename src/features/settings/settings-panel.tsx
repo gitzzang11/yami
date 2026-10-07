@@ -185,7 +185,10 @@ export function SettingsPanel({ today, review }: Props) {
       const granted = await requestNotificationPermission();
       if (!granted) return;
       updateSettings({ notificationsEnabled: true });
-      await scheduleDailyMealNotification(settings.notificationTime, today, review);
+      await scheduleDailyMealNotification(settings.notificationTime, today, review, {
+        schoolCode: settings.selectedSchool?.schoolCode,
+        mealKind: settings.preferredMealKind ?? "lunch",
+      });
       showNotificationToast("on");
     } else {
       updateSettings({ notificationsEnabled: false });
@@ -646,7 +649,7 @@ export function SettingsPanel({ today, review }: Props) {
             <div>
               <div className="font-bold text-sm">매일 아침 급식 알림</div>
               <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                오늘의 급식 메뉴, AI 평가 총점, 대표 한줄평을 알림으로 수신
+                급식이 있는 날에만 수신 · 주말과 공휴일에는 알림 없음
               </div>
             </div>
             <Switch checked={settings.notificationsEnabled} onCheckedChange={toggleNotifications} />
@@ -662,7 +665,10 @@ export function SettingsPanel({ today, review }: Props) {
               onChange={async (event) => {
                 updateSettings({ notificationTime: event.target.value });
                 if (settings.notificationsEnabled) {
-                  await scheduleDailyMealNotification(event.target.value, today, review);
+                  await scheduleDailyMealNotification(event.target.value, today, review, {
+                    schoolCode: settings.selectedSchool?.schoolCode,
+                    mealKind: settings.preferredMealKind ?? "lunch",
+                  });
                 }
                 if (settings.keywordNotificationsEnabled && settings.selectedSchool) {
                   await scheduleKeywordMealNotifications(
@@ -886,7 +892,7 @@ export function SettingsPanel({ today, review }: Props) {
               <div className="font-black text-sm text-zinc-900 dark:text-white flex items-center gap-1.5">
                 <span>급식평론가 (Yami)</span>
                 <span className="rounded-md bg-[var(--theme)]/15 px-1.5 py-0.5 text-[10px] font-black text-[var(--theme)]">
-                  v1.5.3
+                  v1.5.4
                 </span>
               </div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
@@ -901,7 +907,7 @@ export function SettingsPanel({ today, review }: Props) {
           <div className="pt-2 border-t border-zinc-200/60 dark:border-zinc-800 flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
             <span>릴리스 노트 & 오픈소스</span>
             <a
-              href="https://github.com/gitzzang11/yami/releases/tag/v1.5.3"
+              href="https://github.com/gitzzang11/yami/releases/tag/v1.5.4"
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1 font-bold text-[var(--theme)] hover:underline cursor-pointer"
